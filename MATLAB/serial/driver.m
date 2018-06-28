@@ -46,9 +46,11 @@ stats = true;
 
 qFormat = 9;
 
+% from Demo Visualizer - will want to pull from cfg file evenatually
 rangeRes = 0.044;
 maxRange = 9.02;
 
+% from Demo Visualizer - will want to pull from cfg file evenatually
 radialVelRes = 0.13;
 maxRadialVel = 1;
 
@@ -92,6 +94,7 @@ DET_OBJ_LEN = D(offset +4 : offset + 7);
 DET_OBJ_DESCRIPTOR = D(offset + 8 : offset + 11);
 %assures that this will not have an ending index smaller than start index
 if header.numObj > 0
+    % each detected object has 12 bytes worth of data (slide 3)
     DET_OBJ_PAYLOAD = D(offset + 12 : offset + 11 + header.numObj * 12);
     point = struct;
     temp = zeros(3);
@@ -104,6 +107,7 @@ if header.numObj > 0
         temp(2)      = double(typecast(uint8(DET_OBJ_PAYLOAD(difference + 9  : difference + 10)), 'uint16'));
         temp(3)      = double(typecast(uint8(DET_OBJ_PAYLOAD(difference + 11 : difference + 12)), 'uint16'));
         
+        % math reproduced from ti_mmwave_rospkg/src/DataHandlerClass.cpp line 435
         for j = 1 : 3
             if temp(j) > 32767
                 temp(j) = temp(j) - 65535;
@@ -194,6 +198,7 @@ end
 
 %% Where next search for magic word needs to start
 
+% accounts for padded bytes at end of data packet (slide 11)
 offset = 32 - mod(offset + addToOffset,32) + offset + addToOffset;
 
 %% Closing and Clearing Serial Ports
