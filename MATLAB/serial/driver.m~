@@ -40,7 +40,7 @@ end
 
 rangeProfile = true;
 noiseProfile = false;
-rangeAzimuthHeatMap = false;
+rangeAzimuthHeatMap = true;
 rangeDopplerHeatMap = false;
 stats = true;
 
