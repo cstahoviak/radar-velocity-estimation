@@ -13,7 +13,7 @@ function startPacket = findMagicWord(D,start)
         last8Bytes(8) = D(index);
         index = index + 1;
         if index > length(D)
-            disp('No Magic Word Found In Buffer');
+            %disp('No Magic Word Found In Buffer');
             startPacket = -1;
             return;
         end
