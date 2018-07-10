@@ -47,7 +47,7 @@ rangeProfile = true;
 noiseProfile = false;
 rangeAzimuthHeatMap = false;
 rangeDopplerHeatMap = false;
-stats = false;
+stats = true;
 
 %q format used to convert from decimals to integers
 qFormat = 9;
