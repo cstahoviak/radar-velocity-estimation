@@ -47,7 +47,7 @@ rangeProfile = true;
 noiseProfile = false;
 rangeAzimuthHeatMap = false;
 rangeDopplerHeatMap = false;
-stats = true;
+stats = false;
 
 %q format used to convert from decimals to integers
 qFormat = 9;
@@ -69,20 +69,17 @@ numRangeBins = maxRange / rangeRes;
 numVirtualAntenna = numRXantenna * numTXantenna;
 
 %% Reading in Data and Finding Magic Word
-
+tic
 %loops until program is killed
 while running
     
     %a full packet will definately be held in 2000 characters
     while length(D) < 2000
         pause(0.05);   %this pause prevents this loop from exicuting too fast
-        if data_port.BytesAvailable > 100   %if there are more than 100 bytes available read in the data and add to end of D
+        if data_port.BytesAvailable > 200   %if there are more than 100 bytes available read in the data and add to end of D
             D = [D; fread(data_port,data_port.BytesAvailable)];
         end
     end
-    
-    % delete so input buffer does not fill up
-    flushinput(data_port);
     
     offset = 1;
     
@@ -92,7 +89,7 @@ while running
     
     %Find Magic Word
     offset = findMagicWord(D,offset);
-    disp(offset);
+   
     if debug
         disp('Magic Word Found');
     end
@@ -140,13 +137,16 @@ while running
         temp = zeros(3);
         
         for i = 1 : data(count).header.numObj
+            
             difference = (i-1) * 12;
+            
             data(count).point(i).rangeIdx   = typecast(uint8(DET_OBJ_PAYLOAD(difference + 1  : difference + 2 )), 'uint16');
             data(count).point(i).dopplerIdx = typecast(uint8(DET_OBJ_PAYLOAD(difference + 3  : difference + 4 )), 'uint16');
             data(count).point(i).peakVal    = typecast(uint8(DET_OBJ_PAYLOAD(difference + 5  : difference + 6 )), 'uint16');
-            temp(1)      = double(typecast(uint8(DET_OBJ_PAYLOAD(difference + 7  : difference + 8 )), 'uint16'));
-            temp(2)      = double(typecast(uint8(DET_OBJ_PAYLOAD(difference + 9  : difference + 10)), 'uint16'));
-            temp(3)      = double(typecast(uint8(DET_OBJ_PAYLOAD(difference + 11 : difference + 12)), 'uint16'));
+            
+            temp(1) = double(typecast(uint8(DET_OBJ_PAYLOAD(difference + 7  : difference + 8 )), 'uint16'));
+            temp(2) = double(typecast(uint8(DET_OBJ_PAYLOAD(difference + 9  : difference + 10)), 'uint16'));
+            temp(3) = double(typecast(uint8(DET_OBJ_PAYLOAD(difference + 11 : difference + 12)), 'uint16'));
             
             % math reproduced from ti_mmwave_rospkg/src/DataHandlerClass.cpp line 435
             for j = 1 : 3
@@ -245,7 +245,7 @@ while running
     %% Where next search for magic word needs to start
     
     %clears out the used data packet
-    D(1:offset + addToOffset) = [];
+    D(1:data(count).header.totalPacketLen) = [];
     
     %increments count to keep track of number of loops done
     count = count + 1;
@@ -259,7 +259,7 @@ while running
         running = false;
     end
 end
-
+toc
 %% Closing and Clearing Serial Ports
 
 function close(port1,port2)
