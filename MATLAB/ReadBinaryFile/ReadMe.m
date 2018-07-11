@@ -8,6 +8,10 @@
 
 % The separate functions handle different types of TVL data packets.
 
+% A single data file is provided with the extension: *.txt
+
+% Note that the main routine wants the data file in the directory: '..\raw_data\'
+
 % Note that the initial search for the MagicWord may not be necessary for files already created, 
 % but we know that some type of searching logic will be needed for reading data directly 
 % using the serial port.
