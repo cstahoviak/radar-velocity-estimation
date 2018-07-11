@@ -18,6 +18,7 @@ function startPacket = findMagicWord(D,start)
             return;
         end
     end
+    
     startPacket = index;
 end
 
