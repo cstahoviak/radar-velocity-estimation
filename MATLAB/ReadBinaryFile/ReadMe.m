@@ -23,3 +23,4 @@
 % After reading all of the data, the code just makes a simple plot. 
 
 % The user can now process the data in the Matlab workspace as they wish.
+ 
