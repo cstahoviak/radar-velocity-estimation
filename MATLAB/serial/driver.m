@@ -1,3 +1,10 @@
+%% Header
+
+% Make sure the have the IWR1642 connected to the serial ports before
+% opening matlab.
+
+% This will allow matlab to recognize and open them
+
 %% General Setup
 
 clear;
@@ -6,25 +13,18 @@ clear;
 fig1 = figure(1);
 ax1 = axes('Parent',fig1);
 
-%Turns on and off print outs
-debug = false;
 %Condition main while loop takes
 running = true;
 
 %count to keep track of how many loops have been done, used to exit program after endCount loops
 count = 1;
-endCount = 1000;
-
-%check to make sure that selected number of TLVs is correct
-numReadTLV = 0;
+endCount = 100;
 
 %initializes data, D and the input buffer size
 data = struct;
 D = [];
 
 %% Serial Port Setup
-
-bufferSize = 4096; %this is long enough to never fill up
 
 %set the command and data ports
 command_port = serial('/dev/ttyACM0');
@@ -37,7 +37,9 @@ data_rate = 921600;
 command_port.BaudRate = command_rate;
 data_port.BaudRate = data_rate;
 
-%This is currently an arbitrary number that is definately more than one packet
+%Set the buffer size
+bufferSize = 4096; %this is long enough to never fill up
+
 data_port.InputBufferSize = bufferSize;
 
 %open the ports
@@ -53,29 +55,17 @@ filePattern = fullfile('./cfg/', 'bestRangeRes.cfg');
 %sends the specified config file to the device. The files are exported from the demo visualizer
 [rangeRes, maxRange, radialVelRes, maxRadialVel] = sendConfigFile(command_port,filePattern);
 
-%% Sets different variables from different preferences in config file
-
-%these are the check marks at the bottom left of demo vizualizer software
-scatterPlot = true;
-rangeProfile = true;
-noiseProfile = false;
-rangeAzimuthHeatMap = false;
-rangeDopplerHeatMap = false;
-stats = false;
+%% Set Number of Antenna and calculate various bins
 
 numRXantenna = 4;
 numTXantenna = 2;
-
-%Checks TLVs - used later as a check to make sure settings correct
-numReadTLV = scatterPlot + rangeProfile + noiseProfile + rangeAzimuthHeatMap ...
-    + rangeDopplerHeatMap + stats;
 
 %Calcualations to find the number of bins for doppler and range and the number of virtual antenna
 numDopplerBins = maxRadialVel / radialVelRes;
 numRangeBins = maxRange / rangeRes;
 numVirtualAntenna = numRXantenna * numTXantenna;
 
-%% Reading in Data and Finding Magic Word
+%% Looping through Serial Buffer
 
 %loops until program is killed
 while running
@@ -94,106 +84,83 @@ while running
     %Find Magic Word
     offset = findMagicWord(D,1);
     
-    if debug
-        disp('Magic Word Found');
-    end
+    %% Divide packet into different parts
     
-    %% Storing Various Header Components
-    
+    %Every packet has a header 
     [data(count).header.version, data(count).header.totalPacketLen, ...
         data(count).header.platform, data(count).header.frameNumber, ...
         data(count).header.timeCPUcycles, data(count).header.numObj, ...
         data(count).header.numTLV, data(count).header.subFrameNum, addToOffset] ...
-        = findHeader(offset, D, numReadTLV, debug, count);
+        = findHeader(offset, D);
     
-    %% Detected Objects
-    
-    if scatterPlot
+    for i = 1 : data(count).header.numTLV
         
         offset = offset + addToOffset;
+        %The various different TLVs have different tags associated with them
+        tag = typecast(uint8(D(offset : offset + 3)), 'uint32');
         
-        [data(count).detObj.tag, data(count).detObj.len, data(count).detObj.numObj, data(count).detObj.qFormat, ...
-            data(count).detObj.point, addToOffset] ...
-            = findDetectedObj(offset, D, debug);
-       
-    end
-    %% Range Profile
-    
-    if rangeProfile
-        
-        offset = offset + addToOffset;
-        
-        [data(count).rangeProfile.tag, data(count).rangeProfile.len, ...
-            data(count).rangeProfile.PAYLOAD, addToOffset] ...
-            = findRangeProfile(offset, D, debug, numRangeBins);
-    end
-    
-    
-    %% Noise Profile
-    
-    if noiseProfile
-        
-        offset = offset + addToOffset;
-        
-        [data(count).noiseProfile.tag, data(count).noiseProfile.len, ...
-            data(count).noiseProfile.PAYLOAD, addToOffset] ...
-            = findNoiseProfile(offset, D, debug);
-    end
-    
-    
-    %% Azimuth Heat Map
-    
-    if rangeAzimuthHeatMap
-        
-        offset = offset + addToOffset;
-        
-        [data(count).azimuthHeat.tag, data(count).azimuthHeat.len, ...
-            data(count).azimuthHeat.PAYLOAD, addToOffset] ...
-            = findAzimuthHeatMap(offset, D, debug, numRangeBins, numVirtualAntenna);
-    end
-    
-    
-    %% Range Doppler Heat map
-    
-    if rangeDopplerHeatMap
-        
-        offset = offset + addToOffset;
-        
-        [data(count).dopplerHeat.tag, data(count).dopplerHeat.len, ...
-            data(count).dopplerHeat.PAYLOAD, addToOffset] ...
-            = findDopplerHeatMap(offset, D, debug, numRangeBins, numDopplerBins);
-    end
-    
-    %% Statistics Profile
-    
-    if stats
-        
-        offset = offset + addToOffset;
-        
-        [data(count).stats.tag, data(count).stats.len, ...
-            data(count).stats.PAYLOAD, addToOffset] ...
-            = findStats(offset, D, debug);
+        switch tag
+            
+            case 1
+                
+                [data(count).detObj.tag, data(count).detObj.len, data(count).detObj.numObj, data(count).detObj.qFormat, ...
+                    data(count).detObj.point, addToOffset] ...
+                    = findDetectedObj(offset, D);
+                
+            case 2
+                
+                [data(count).rangeProfile.tag, data(count).rangeProfile.len, ...
+                    data(count).rangeProfile.PAYLOAD, addToOffset] ...
+                    = findRangeProfile(offset, D, numRangeBins);
+                
+            case 3
+               
+                
+                [data(count).noiseProfile.tag, data(count).noiseProfile.len, ...
+                    data(count).noiseProfile.PAYLOAD, addToOffset] ...
+                    = findNoiseProfile(offset, D);
+                
+            case 4
+                
+              
+                [data(count).azimuthHeat.tag, data(count).azimuthHeat.len, ...
+                    data(count).azimuthHeat.PAYLOAD, addToOffset] ...
+                    = findAzimuthHeatMap(offset, D, numRangeBins, numVirtualAntenna);
+                
+            case 5
+                
+                [data(count).dopplerHeat.tag, data(count).dopplerHeat.len, ...
+                    data(count).dopplerHeat.PAYLOAD, addToOffset] ...
+                    = findDopplerHeatMap(offset, D, numRangeBins, numDopplerBins);
+            case 6
+                
+                [data(count).stats.tag, data(count).stats.len, ...
+                    data(count).stats.PAYLOAD, addToOffset] ...
+                    = findStats(offset, D);
+        end
     end
     
     %% Plotting the points
     
     %plots the x,y and intencity - does it every other time in order to not cause a build up of data
-    x = [data(count).detObj.point(:).x];
-    y = [data(count).detObj.point(:).y];
-    for i=1:length(x)
-        intensity = double(data(count).detObj.point(i).peakVal)/8000;
-        if intensity > 1
-            intensity = 1;
+    if data(count).header.numObj > 0
+        x = [data(count).detObj.point(:).x];
+        y = [data(count).detObj.point(:).y];
+        for i=1:length(x)
+            intensity = double(data(count).detObj.point(i).peakVal)/8000;
+            if intensity > 1
+                intensity = 1;
+            end
+            if x(i) < 3 && x(i) > -3 && y(i) < 10 && intensity > 0.1
+                scatter(ax1,x(i),y(i),'MarkerFaceColor','b', ...
+                    'MarkerEdgeColor','b','MarkerFaceAlpha',intensity, ...
+                    'MarkerEdgeAlpha',0)
+                xlim(ax1,[-3,3]); ylim(ax1,[0,5]);
+                hold on;
+            end
         end
-        if x(i) < 3 && x(i) > -3 && y(i) < 10 && intensity > 0.1
-            scatter(ax1,x(i),y(i),'MarkerFaceColor','b', ...
-            'MarkerEdgeColor','b','MarkerFaceAlpha',intensity, ...
-            'MarkerEdgeAlpha',0)
-            xlim(ax1,[-3,3]); ylim(ax1,[0,5]);
-            hold on;
-        end
+        hold off;
     end
-    hold off;
     
     %% Clear out data and check count
     
@@ -202,11 +169,7 @@ while running
     
     %increments count to keep track of number of loops done
     count = count + 1;
-    
-    if debug
-        fprintf("Count: %d \n",count);
-    end
-    
+
     %ends program after endCount packets are collected
     if count > endCount
         running = false;
@@ -214,14 +177,18 @@ while running
     
 end
 
+% Delete this figure at end of program
+delete(fig1);
+% Tells radar to stop transmitting
+fprintf(command_port,'sensorStop');
 
 %% Closing and Clearing Serial Ports
 
-function close(port1,port2)
+function close(port1, port2)
     fclose(port1);
     fclose(port2);
     delete(port1);
     delete(port2);
     clear port1;
     clear port2;
-end
+    end

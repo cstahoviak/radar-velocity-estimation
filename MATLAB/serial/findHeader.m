@@ -1,6 +1,6 @@
 function [version, totalPacketLen, platform, frameNumber, timeCPUcycles, ...
         numObj, numTLV, subFrameNum, addToOffset] ...
-        = findHeader(offset, D, numReadTLV, debug, count)
+        = findHeader(offset, D)
     
     %splits up the data packet header
     version        = typecast(uint8(D(offset      : offset +  3)), 'uint32');
@@ -13,12 +13,5 @@ function [version, totalPacketLen, platform, frameNumber, timeCPUcycles, ...
     subFrameNum    = typecast(uint8(D(offset + 28 : offset + 31)), 'uint32');
     
     addToOffset = 32;
-    
-    if numTLV ~= numReadTLV && count == 1
-        disp('Incorrect options chosen for TLV');
-    end
-    
-    if debug
-        disp('Header');
-    end
+   
 end
