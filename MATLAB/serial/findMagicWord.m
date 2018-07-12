@@ -1,4 +1,4 @@
-%% Function to find start of data packet in serial buffer
+% Function to find start of data packet in serial buffer
 
 function startPacket = findMagicWord(D,start)
     

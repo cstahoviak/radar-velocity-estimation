@@ -22,9 +22,6 @@ numReadTLV = 0;
 data = struct;
 D = [];
 
-%shutdown procedure that closes the ports even if program fails or is stopped early
-finish = onCleanup(@() close(data_port,command_port));
-
 %% Serial Port Setup
 
 bufferSize = 4096; %this is long enough to never fill up
@@ -46,6 +43,9 @@ data_port.InputBufferSize = bufferSize;
 %open the ports
 fopen(command_port);
 fopen(data_port);
+
+%shutdown procedure that closes the ports even if program fails or is stopped early
+finish = onCleanup(@() close(data_port,command_port));
 
 %sets the path to the config files, just change the last input argument to change cfg files
 filePattern = fullfile('./cfg/', 'bestRangeRes.cfg');
@@ -84,7 +84,7 @@ while running
     %a full packet will definately be held in 1000 characters or clear out the buffer if backed up
     while length(D) < 1000 || firstTime
         firstTime = false;
-        pause(0.05);   %this pause prevents this loop from exicuting too fast
+        pause(0.02);   %this pause prevents this loop from exicuting too fast
         
         if data_port.BytesAvailable > 200   %if there are more than 100 bytes available read in the data and add to end of D
             D = [D; fread(data_port,data_port.BytesAvailable)];
@@ -185,8 +185,7 @@ while running
         if intensity > 1
             intensity = 1;
         end
-        if x(i) < 7 && y(i) < 10
-            %scatter(ax1,x(i),y(i))
+        if x(i) < 3 && x(i) > -3 && y(i) < 10 && intensity > 0.1
             scatter(ax1,x(i),y(i),'MarkerFaceColor','b', ...
             'MarkerEdgeColor','b','MarkerFaceAlpha',intensity, ...
             'MarkerEdgeAlpha',0)
