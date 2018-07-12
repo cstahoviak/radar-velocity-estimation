@@ -18,9 +18,9 @@ running = true;
 
 %count to keep track of how many loops have been done, used to exit program after endCount loops
 count = 1;
-endCount = 100;
+endCount = 200;
 
-%initializes data, D and the input buffer size
+%initializes data and D
 data = struct;
 D = [];
 
@@ -146,6 +146,7 @@ while running
     if data(count).header.numObj > 0
         x = [data(count).detObj.point(:).x];
         y = [data(count).detObj.point(:).y];
+        %vel = [data(count).detObj.point(:).dopplerIdx];
         for i=1:length(x)
             intensity = double(data(count).detObj.point(i).peakVal)/8000;
             if intensity > 1
@@ -155,7 +156,7 @@ while running
                 scatter(ax1,x(i),y(i),'MarkerFaceColor','b', ...
                     'MarkerEdgeColor','b','MarkerFaceAlpha',intensity, ...
                     'MarkerEdgeAlpha',0)
-                xlim(ax1,[-3,3]); ylim(ax1,[0,5]);
+                xlim(ax1,[-3,3]); ylim(ax1,[0,5]); zlim(ax1,[0,65535]);
                 hold on;
             end
         end
