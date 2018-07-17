@@ -18,7 +18,7 @@ running = true;
 
 %count to keep track of how many loops have been done, used to exit program after endCount loops
 count = 1;
-endCount = 200;
+endCount = 10;
 
 %initializes data and D
 data = struct;
@@ -50,7 +50,7 @@ fopen(data_port);
 finish = onCleanup(@() close(data_port,command_port));
 
 %sets the path to the config files, just change the last input argument to change cfg files
-filePattern = fullfile('./cfg/', 'bestRangeRes.cfg');
+filePattern = fullfile('./cfg/', '1642_2d_noGrouping.cfg');
 
 %sends the specified config file to the device. The files are exported from the demo visualizer
 [rangeRes, maxRange, radialVelRes, maxRadialVel] = sendConfigFile(command_port,filePattern);
@@ -105,7 +105,7 @@ while running
                 
                 [data(count).detObj.tag, data(count).detObj.len, data(count).detObj.numObj, data(count).detObj.qFormat, ...
                     data(count).detObj.point, addToOffset] ...
-                    = findDetectedObj(offset, D);
+                    = findDetectedObj(offset, D, radialVelRes);
                 
             case 2
                 
@@ -156,7 +156,7 @@ while running
                 scatter(ax1,x(i),y(i),'MarkerFaceColor','b', ...
                     'MarkerEdgeColor','b','MarkerFaceAlpha',intensity, ...
                     'MarkerEdgeAlpha',0)
-                xlim(ax1,[-3,3]); ylim(ax1,[0,5]); zlim(ax1,[0,65535]);
+                xlim(ax1,[-3,3]); ylim(ax1,[0,5]);
                 hold on;
             end
         end

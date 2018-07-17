@@ -1,5 +1,5 @@
 function [tag, len, numObj, qFormat, point, addToOffset] ...
-        = findDetectedObj(offset, D)
+        = findDetectedObj(offset, D, radialVelRes)
     
     tag     = typecast(uint8(D(offset     : offset +  3)), 'uint32');
     len     = typecast(uint8(D(offset +  4: offset +  7)), 'uint32');
@@ -25,15 +25,19 @@ function [tag, len, numObj, qFormat, point, addToOffset] ...
             temp(1) = double(typecast(uint8(DET_OBJ_PAYLOAD(difference + 7  : difference + 8 )), 'uint16'));
             temp(2) = double(typecast(uint8(DET_OBJ_PAYLOAD(difference + 9  : difference + 10)), 'uint16'));
             temp(3) = double(typecast(uint8(DET_OBJ_PAYLOAD(difference + 11 : difference + 12)), 'uint16'));
+            temp(4) = double(point(i).dopplerIdx);
             
             % math reproduced from ti_mmwave_rospkg/src/DataHandlerClass.cpp line 435
-            for j = 1 : 3
+            for j = 1 : 4
                 if temp(j) > 32767
                     temp(j) = temp(j) - 65535;
                 end
-                temp(j) = temp(j) / (2 ^ double(qFormat));
+                if j < 4
+                    temp(j) = temp(j) / (2 ^ double(qFormat));
+                end
             end
             
+            point(i).vel = temp(4) * radialVelRes;
             point(i).x = temp(1);
             point(i).y = temp(2);
             point(i).z = temp(3);
