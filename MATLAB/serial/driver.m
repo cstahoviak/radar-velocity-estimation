@@ -18,7 +18,7 @@ running = true;
 
 %count to keep track of how many loops have been done, used to exit program after endCount loops
 count = 1;
-endCount = 10;
+endCount = 1000;
 
 %initializes data and D
 data = struct;
@@ -71,8 +71,8 @@ numVirtualAntenna = numRXantenna * numTXantenna;
 while running
     
     firstTime = true;
-    %a full packet will definately be held in 1000 characters or clear out the buffer if backed up
-    while length(D) < 1000 || firstTime
+    %a full packet will definately be held in 1280 characters or clear out the buffer if backed up
+    while length(D) < 1280 || firstTime
         firstTime = false;
         pause(0.02);   %this pause prevents this loop from exicuting too fast
         
@@ -141,28 +141,30 @@ while running
     end
     
     %% Plotting the points
-    
-    %plots the x,y and intencity - does it every other time in order to not cause a build up of data
-    if data(count).header.numObj > 0
-        x = [data(count).detObj.point(:).x];
-        y = [data(count).detObj.point(:).y];
-        %vel = [data(count).detObj.point(:).dopplerIdx];
-        for i=1:length(x)
-            intensity = double(data(count).detObj.point(i).peakVal)/8000;
-            if intensity > 1
-                intensity = 1;
+
+    if length(D) < 3000
+        %plots the x,y and intencity - does it every other time in order to not cause a build up of data
+        if data(count).header.numObj > 0
+            x = [data(count).detObj.point(:).x];
+            y = [data(count).detObj.point(:).y];
+            %vel = [data(count).detObj.point(:).dopplerIdx];
+            for i=1:length(x)
+                intensity = double(data(count).detObj.point(i).peakVal)/8000;
+                if intensity > 1
+                    intensity = 1;
+                end
+                if x(i) < 3 && x(i) > -3 && y(i) < 10 && intensity > 0.1
+                    scatter(ax1,x(i),y(i),'MarkerFaceColor','b', ...
+                        'MarkerEdgeColor','b','MarkerFaceAlpha',intensity, ...
+                        'MarkerEdgeAlpha',0)
+                    xlim(ax1,[-3,3]); ylim(ax1,[0,5]);
+                    hold on;
+                end
             end
-            if x(i) < 3 && x(i) > -3 && y(i) < 10 && intensity > 0.1
-                scatter(ax1,x(i),y(i),'MarkerFaceColor','b', ...
-                    'MarkerEdgeColor','b','MarkerFaceAlpha',intensity, ...
-                    'MarkerEdgeAlpha',0)
-                xlim(ax1,[-3,3]); ylim(ax1,[0,5]);
-                hold on;
-            end
+            hold off;
         end
-        hold off;
     end
-    
+
     %% Clear out data and check count
     
     %clears out the used data packet
@@ -180,8 +182,10 @@ end
 
 % Delete this figure at end of program
 delete(fig1);
+disp('Deleting Figure');
 % Tells radar to stop transmitting
 fprintf(command_port,'sensorStop');
+disp('Sent: sensorStop');
 
 %% Closing and Clearing Serial Ports
 
