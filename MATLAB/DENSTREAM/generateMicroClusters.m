@@ -13,9 +13,6 @@ function [ p_mc,o_mc ] = generateMicroClusters( P,idx,t_now,lambda,beta,mu,color
 %    numbers...
 % 2. Use repmat() to init array of micro-cluster structs
 
-% define fading function
-fading = @(t) 2^(-lambda*(t_now - t));
-
 %% BEGIN FUNCTION
 
 % init micro-cluster struct - how to init array of empty structs?
@@ -27,37 +24,9 @@ o_mc = struct([]);
 for i=1:max(idx)
     cluster_idx = (idx == i);
     
-    % assign points to new p-micro-cluster
-    mc.points = P(cluster_idx,:);
-    
-    % init p-micro-cluster incremental parameters
-    mc.weight = 0;
-    mc.CF1    = zeros(1,2);
-    mc.CF2    = zeros(1,2);
-    
-    % calculate p-micro-cluster parameters, {w,CF_1,CF_2} 
-    for j=1:size(mc.points,1)
-        mc.weight = mc.weight + fading(mc.points(j,4));
-        mc.CF1    = mc.CF1 + fading(mc.points(j,4))*mc.points(j,1:2);
-        mc.CF2    = mc.CF2 + fading(mc.points(j,4))*mc.points(j,1:2).^2;
-    end
-    
-    % calculate p-micro-cluster parameters, {center,radius} = f(w,CF1,CF2)
-    mc.center = mc.CF1 / mc.weight;
-    fprintf('\nmc(%d).radius =\n',i);
-    mc.radius = sqrt(norm(mc.CF2) / mc.weight - ...
-                    (norm(mc.CF1) / mc.weight)^2);
-    disp(mc.radius)
-    
-    % radius measurement with switched terms
-    mc.radius = sqrt((norm(mc.CF1) / mc.weight)^2 - ...
-                      norm(mc.CF2) / mc.weight);
-    disp(mc.radius)
-                
-    % unweighted radius measurement
-    dist = pdist2(mc.center,mc.points(:,1:2),'euclidean');
-    mc.radius = max(dist);
-    disp(mc.radius)
+    % create new micro-cluster
+    points = P(cluster_idx,:);
+    mc = updateMicroCluster( points,[],lambda,t_now,'' );
                      
    if mc.weight >= beta*mu
        % add unique color to p-micro-cluster

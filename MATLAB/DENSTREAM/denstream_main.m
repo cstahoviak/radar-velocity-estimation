@@ -81,7 +81,7 @@ t_now = toc;
 updateClusterPlot( ax,MIN,MAX,p_mc,o_mc );
 pause(waitTime);
 
-return;
+% return;
 
 %% MAIN LOOP
 

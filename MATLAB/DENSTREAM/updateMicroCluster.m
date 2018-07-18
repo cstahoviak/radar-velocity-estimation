@@ -5,6 +5,8 @@ function [ mc ] = updateMicroCluster( P,mc,lambda,t_now,mc_type )
 % define fading function
 fading = @(t) 2^(-lambda*(t_now - t));
 
+PRINT_RADIUS = 0;
+
 %% BEGIN FUNCTION
 
 % add point to micro-cluster
@@ -35,20 +37,26 @@ end
 
 % calculate p-micro-cluster parameters, {center,radius} = f(w,CF1,CF2)
 mc.center = mc.CF1 / mc.weight;
-fprintf('\nmc(%d).radius =\n',i);
 mc.radius = sqrt(norm(mc.CF2) / mc.weight - ...
                 (norm(mc.CF1) / mc.weight)^2);  % not working...
-disp(mc.radius)
+if PRINT_RADIUS
+    fprintf('\nmc.radius =\n');
+    disp(mc.radius)
+end
 
 % radius measurement with switched terms
 mc.radius = sqrt((norm(mc.CF1) / mc.weight)^2 - ...
                   norm(mc.CF2) / mc.weight);
-disp(mc.radius)
+if PRINT_RADIUS
+    disp(mc.radius)
+end
 
 % unweighted radius measurement
 dist = pdist2(mc.center,mc.points(:,1:2),'euclidean');
 mc.radius = max(dist);
-disp(mc.radius)
+if PRINT_RADIUS
+    disp(mc.radius)
+end
 
 end
 
