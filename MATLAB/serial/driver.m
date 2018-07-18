@@ -73,9 +73,11 @@ while running
     firstTime = true;
     %a full packet will definately be held in 1280 characters or clear out the buffer if backed up
     while length(D) < 1280 || firstTime
+        if ~firstTime
+            pause(0.02);   %this pause prevents this loop from exicuting too fast, but on the first time though it will just read incase it needs to catch up
+        end
         firstTime = false;
-        pause(0.02);   %this pause prevents this loop from exicuting too fast
-        
+                
         if data_port.BytesAvailable > 200   %if there are more than 100 bytes available read in the data and add to end of D
             D = [D; fread(data_port,data_port.BytesAvailable)];
         end
@@ -103,8 +105,8 @@ while running
             
             case 1
                 
-                [data(count).detObj.tag, data(count).detObj.len, data(count).detObj.numObj, data(count).detObj.qFormat, ...
-                    data(count).detObj.point, addToOffset] ...
+                [data(count).detObj.tag, data(count).detObj.len, data(count).detObj.numObj,...
+                    data(count).detObj.qFormat, data(count).detObj.point, addToOffset] ...
                     = findDetectedObj(offset, D, radialVelRes);
                 
             case 2
@@ -134,8 +136,10 @@ while running
                     = findDopplerHeatMap(offset, D, numRangeBins, numDopplerBins);
             case 6
                 
-                [data(count).stats.tag, data(count).stats.len, ...
-                    data(count).stats.PAYLOAD, addToOffset] ...
+                [data(count).stats.tag, data(count).stats.len, data(count).stats.interFrameProcessingTime, ...
+                    data(count).stats.transmitOutputTime, data(count).stats.interFrameProcessingMargin, ...
+                    data(count).stats.interChirpProcessingMargin, data(count).stats.activeFrameCPULoad, ...
+                    data(count).stats.interFrameCPULoad, addToOffset] ...
                     = findStats(offset, D);
         end
     end
