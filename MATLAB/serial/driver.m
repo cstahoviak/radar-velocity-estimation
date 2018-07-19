@@ -69,7 +69,7 @@ numVirtualAntenna = numRXantenna * numTXantenna;
 
 %loops until program is killed
 while running
-    
+
     firstTime = true;
     %a full packet will definately be held in 1280 characters or clear out the buffer if backed up
     while length(D) < 1280 || firstTime
@@ -77,73 +77,74 @@ while running
             pause(0.02);   %this pause prevents this loop from exicuting too fast, but on the first time though it will just read incase it needs to catch up
         end
         firstTime = false;
-                
+
         if data_port.BytesAvailable > 200   %if there are more than 100 bytes available read in the data and add to end of D
             D = [D; fread(data_port,data_port.BytesAvailable)];
         end
     end
-    
+
     %Find Magic Word
     offset = findMagicWord(D,1);
-    
+
     %% Divide packet into different parts
-    
-    %Every packet has a header 
+
+    %Every packet has a header
     [data(count).header.version, data(count).header.totalPacketLen, ...
-        data(count).header.platform, data(count).header.frameNumber, ...
-        data(count).header.timeCPUcycles, data(count).header.numObj, ...
-        data(count).header.numTLV, data(count).header.subFrameNum, addToOffset] ...
-        = findHeader(offset, D);
-    
+    data(count).header.platform, data(count).header.frameNumber, ...
+    data(count).header.timeCPUcycles, data(count).header.numObj, ...
+    data(count).header.numTLV, data(count).header.subFrameNum, addToOffset] ...
+    = findHeader(offset, D);
+
     for i = 1 : data(count).header.numTLV
-        
+
         offset = offset + addToOffset;
         %The various different TLVs have different tags associated with them
         tag = typecast(uint8(D(offset : offset + 3)), 'uint32');
-        
+
         switch tag
-            
-            case 1
-                
-                [data(count).detObj.tag, data(count).detObj.len, data(count).detObj.numObj,...
-                    data(count).detObj.qFormat, data(count).detObj.point, addToOffset] ...
-                    = findDetectedObj(offset, D, radialVelRes);
-                
-            case 2
-                
-                [data(count).rangeProfile.tag, data(count).rangeProfile.len, ...
-                    data(count).rangeProfile.PAYLOAD, addToOffset] ...
-                    = findRangeProfile(offset, D, numRangeBins);
-                
-            case 3
-               
-                
-                [data(count).noiseProfile.tag, data(count).noiseProfile.len, ...
-                    data(count).noiseProfile.PAYLOAD, addToOffset] ...
-                    = findNoiseProfile(offset, D);
-                
-            case 4
-                
-              
-                [data(count).azimuthHeat.tag, data(count).azimuthHeat.len, ...
-                    data(count).azimuthHeat.PAYLOAD, addToOffset] ...
-                    = findAzimuthHeatMap(offset, D, numRangeBins, numVirtualAntenna);
-                
-            case 5
-                
-                [data(count).dopplerHeat.tag, data(count).dopplerHeat.len, ...
-                    data(count).dopplerHeat.PAYLOAD, addToOffset] ...
-                    = findDopplerHeatMap(offset, D, numRangeBins, numDopplerBins);
-            case 6
-                
-                [data(count).stats.tag, data(count).stats.len, data(count).stats.interFrameProcessingTime, ...
-                    data(count).stats.transmitOutputTime, data(count).stats.interFrameProcessingMargin, ...
-                    data(count).stats.interChirpProcessingMargin, data(count).stats.activeFrameCPULoad, ...
-                    data(count).stats.interFrameCPULoad, addToOffset] ...
-                    = findStats(offset, D);
+
+
+        case 1
+
+            [data(count).detObj.tag, data(count).detObj.len, data(count).detObj.numObj,...
+            data(count).detObj.qFormat, data(count).detObj.point, addToOffset] ...
+            = findDetectedObj(offset, D, radialVelRes);
+
+        case 2
+          %NOTE: Future work is to understand the PAYLOADs
+            [data(count).rangeProfile.tag, data(count).rangeProfile.len, ...
+            data(count).rangeProfile.PAYLOAD, addToOffset] ...
+            = findRangeProfile(offset, D, numRangeBins);
+
+        case 3
+
+
+            [data(count).noiseProfile.tag, data(count).noiseProfile.len, ...
+            data(count).noiseProfile.PAYLOAD, addToOffset] ...
+            = findNoiseProfile(offset, D);
+
+        case 4
+
+
+            [data(count).azimuthHeat.tag, data(count).azimuthHeat.len, ...
+            data(count).azimuthHeat.PAYLOAD, addToOffset] ...
+            = findAzimuthHeatMap(offset, D, numRangeBins, numVirtualAntenna);
+
+        case 5
+
+            [data(count).dopplerHeat.tag, data(count).dopplerHeat.len, ...
+            data(count).dopplerHeat.PAYLOAD, addToOffset] ...
+            = findDopplerHeatMap(offset, D, numRangeBins, numDopplerBins);
+        case 6
+
+            [data(count).stats.tag, data(count).stats.len, data(count).stats.interFrameProcessingTime, ...
+            data(count).stats.transmitOutputTime, data(count).stats.interFrameProcessingMargin, ...
+            data(count).stats.interChirpProcessingMargin, data(count).stats.activeFrameCPULoad, ...
+            data(count).stats.interFrameCPULoad, addToOffset] ...
+            = findStats(offset, D);
         end
     end
-    
+
     %% Plotting the points
 
     if length(D) < 3000
@@ -159,8 +160,8 @@ while running
                 end
                 if x(i) < 3 && x(i) > -3 && y(i) < 10 && intensity > 0.1
                     scatter(ax1,x(i),y(i),'MarkerFaceColor','b', ...
-                        'MarkerEdgeColor','b','MarkerFaceAlpha',intensity, ...
-                        'MarkerEdgeAlpha',0)
+                    'MarkerEdgeColor','b','MarkerFaceAlpha',intensity, ...
+                    'MarkerEdgeAlpha',0)
                     xlim(ax1,[-3,3]); ylim(ax1,[0,5]);
                     hold on;
                 end
@@ -170,10 +171,10 @@ while running
     end
 
     %% Clear out data and check count
-    
+
     %clears out the used data packet
     D(1:data(count).header.totalPacketLen) = [];
-    
+
     %increments count to keep track of number of loops done
     count = count + 1;
 
@@ -181,7 +182,7 @@ while running
     if count > endCount
         running = false;
     end
-    
+
 end
 
 % Delete this figure at end of program
@@ -200,4 +201,4 @@ function close(port1, port2)
     delete(port2);
     clear port1;
     clear port2;
-    end
+end
