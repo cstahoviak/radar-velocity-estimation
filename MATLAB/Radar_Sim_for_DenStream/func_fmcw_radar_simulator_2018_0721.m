@@ -21,6 +21,17 @@ function [radar_target_list]  = func_fmcw_radar_simulator_2018_0721(target_attri
 %                         4       target speed [m/s]
 %                         5       target attack angle [degrees]
 
+% Outputs:
+% radar_target_list  -  List of 64 targets   
+%                       One target per row.
+%                       columns are defined as:
+%                       column    Description
+%                         1       SNR - signal to noise ratio
+%                         2       x distance (postive to the right of radar)
+%                         3       y distance 
+%                         4       z distance (positive is above radar)
+%                         5       Doppler velocity (positive = target approaching radar)
+
 % Steps:
 % Section I.   Define the radar operating parameters
 % Section II.  Transmit multiple chirps

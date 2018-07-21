@@ -130,6 +130,17 @@ for k = 1:sim_N_interations
    
    [radar_target_list]  = func_fmcw_radar_simulator_2018_0721(target_attribute);
 
+   % output is:
+   % radar_target_list  -  List of 64 targets
+   %                       One target per row.
+   %                       columns are defined as:
+   %                       column    Description
+   %                         1       SNR - signal to noise ratio
+   %                         2       x distance (postive to the right of radar)
+   %                         3       y distance
+   %                         4       z distance (positive is above radar)
+   %                         5       Doppler velocity (positive = target approaching radar)
+
    %% display a couple targets
    
    disp(' ')
