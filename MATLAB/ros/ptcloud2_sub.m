@@ -3,6 +3,7 @@
 % Before running this script start the following from terminal
 % 1. roslaunch ti_mmwave_rospkg rviz_1642_2d.launch
 % 2. roslaunch sweep_ros sweep.launch
+% 3. run 'rosinit' from the command window
 
 % This will create the ROS topics '/mmWaveDataHdl/Rscan' from the radar and
 % '/pc2' from the lidar which we will subscribe to
@@ -16,6 +17,7 @@ close all;
 % define radar/lidar data figure
 fig1 = figure(1);
 ax1 = axes('Parent',fig1);
+grid on;
 
 rdr_callback_handle = {@rdr_callback,ax1};
 ldr_callback_handle = {@ldr_callback,ax1};
@@ -69,26 +71,40 @@ function plot_pc2(data,type,ax)
         return;
     end
     
-    % update data for new received message
-    rdr_x = rdr_data(:,1);
-    rdr_y = rdr_data(:,2);
+      % From ti_mmwave_rospkg DataHandlerClass.cpp
+%     temp[0] = (float) mmwData.objOut.x;
+%     temp[1] = (float) mmwData.objOut.y;
+%     temp[2] = (float) mmwData.objOut.z;
+%     
+%     // Map mmWave sensor coordinates to ROS coordinate system
+%     RScan->points[i].x = temp[1];   // ROS standard coordinate system X-axis is forward which is the mmWave sensor Y-axis
+%     RScan->points[i].y = -temp[0];  // ROS standard coordinate system Y-axis is left which is the mmWave sensor -(X-axis)
+%     RScan->points[i].z = temp[2];   // ROS standard coordinate system Z-axis is up which is the same as mmWave sensor Z-axis
+    
+    % update data for new received message and undo ROS xy re-mapping as
+    % described in the comments above (NOT COMPLETE)
+    rdr_x = rdr_data(:,2)*(-1);
+    rdr_y = rdr_data(:,1);
     rdr_intensity = rdr_data(:,4);
         
-    ldr_x = ldr_data(:,1);
-    ldr_y = ldr_data(:,2);
+    ldr_x = ldr_data(:,2)*(-1);
+    ldr_y = ldr_data(:,1);
     
-    % plot data
+    % plot radar data
     for(i=1:length(rdr_x))
-        scatter(ax,rdr_x(i),rdr_y(i),'MarkerFaceColor','b', ...
+        scatter(ax,rdr_x(i),rdr_y(i),10,'MarkerFaceColor','b', ...
             'MarkerEdgeColor','b','MarkerFaceAlpha',rdr_intensity(i), ...
             'MarkerEdgeAlpha',0)
-        xlim(ax,[-5,10]); ylim(ax,[-10,10]);
+        ylim(ax,[-5,10]); xlim(ax,[-10,10]);
+        grid on;
         hold on;
     end
     
+    % plot lidar data
     for(i=1:length(ldr_x))
         scatter(ax,ldr_x(i),ldr_y(i),10,'r','filled')
-        xlim(ax,[-5,10]); ylim(ax,[-10,10]);
+        ylim(ax,[-5,10]); xlim(ax,[-10,10]);
+        grid on;
         hold on;
     end
     hold off;
