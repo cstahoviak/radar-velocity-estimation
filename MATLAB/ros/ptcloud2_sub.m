@@ -35,6 +35,13 @@ ldr_sub = rossubscriber('/pc2','sensor_msgs/PointCloud2',ldr_callback_handle);
 %     
 % end
 
+while time < 10
+    time = toc;
+end
+
+rosshutdown;
+return;
+
 function rdr_callback(~,rdr_pc2,ax1)
     rdr_xyz = readXYZ(rdr_pc2);
     

@@ -9,8 +9,8 @@ for i=1:length(p_mc)
     Color = p_mc(i).color;
     Legends{end+1} = ['Cluster #' num2str(i)];
     
-    X = p_mc(i).points(:,1);
-    Y = p_mc(i).points(:,2);
+    X = p_mc(i).points(:,2);
+    Y = p_mc(i).points(:,3);
 
     plot(ax,X,Y,Style,'MarkerSize',MarkerSize,'Color',Color);
     xlim([MIN(1)-5 MAX(1)+5]); ylim([MIN(2)-5 MAX(2)+5]);
@@ -28,8 +28,8 @@ for i=1:length(o_mc)
     Color = 'k';
     Legends{end+1} = ['O-Cluster #' num2str(i)];
     
-    X = o_mc(i).points(:,1);
-    Y = o_mc(i).points(:,2);
+    X = o_mc(i).points(:,2);
+    Y = o_mc(i).points(:,3);
 
     plot(ax,X,Y,Style,'MarkerSize',MarkerSize,'Color',Color);
     xlim([MIN(1)-5 MAX(1)+5]); ylim([MIN(2)-5 MAX(2)+5]);

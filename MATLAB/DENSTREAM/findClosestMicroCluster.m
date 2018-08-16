@@ -15,7 +15,7 @@ for i=1:Nmc
     if strcmp(type,'mahal')
         % find closest micro-cluster based on Mahalanobis distance
 
-        Y = P(1:3);                         % observation P(i)
+        Y = [P(2:3), P(6)];                         % observation P(i)
         X = [mc(i).center, mc(i).peakVal];  % reference
 
         dist(i) = pdist2(X,Y,'mahalanobis');
@@ -23,7 +23,7 @@ for i=1:Nmc
     elseif strcmp(type,'euclid')
         % find closest micro-cluster based on Euclidean distance
 
-        Y = P(1:2);         % observation P(i)
+        Y = P(2:3);         % observation P(i)
         X = mc(i).center;   % reference
 
         dist(i) = pdist2(X,Y,'euclidean');

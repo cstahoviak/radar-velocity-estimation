@@ -1,4 +1,4 @@
-function [p_mc,o_mc] = DENSTREAM( P,p_mc,o_mc,lambda,eps,beta,mu,Tp,distType,t_now,colors )
+function [ p_mc,o_mc ] = DENSTREAM( P,p_mc,o_mc,lambda,eps,beta,mu,Tp,distType,t_now,colors )
 %UNTITLED3 Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -24,7 +24,7 @@ Ntargets = size(P,1);
 
 % What if no iniitial clusters are created??
 % Run DBSCAN on next scan of targets to try to create initial set of
-% p-micro-clusters? Other alternatives?
+% p-micro-clusters? (Implemented this solution) Other alternatives?
  
 % loop through all points in current radar scan
 for i=1:Ntargets
@@ -37,16 +37,16 @@ for i=1:Ntargets
                               distType,t_now,colors );
 end
 % disp('FINISHED MERGING ALL TARGETS')
-% return;
 
 Np_mc = length(p_mc);
 No_mc = length(o_mc);
 
 % if current time is multiple of "pruning" interval
-disp(mod(round(t_now),Tp))
+% disp(mod(round(t_now),Tp))
 if ~mod(round(t_now),Tp)
     disp('DENSTREAM: pruning interval reached')
     
+    % p-micro-cluster "pruning"
     if ~isempty(p_mc)
         i = 1;
         count = 1;
@@ -62,6 +62,7 @@ if ~mod(round(t_now),Tp)
         end
     end
     
+    % o-micro-cluster "pruning"
     if ~isempty(o_mc)
         i = 1;
         count = 1;
@@ -79,7 +80,7 @@ if ~mod(round(t_now),Tp)
         end
     end
      
-end % end if mod(t_now,Tp,)
+end % end if mod(t_now,Tp)
 
 end
 
