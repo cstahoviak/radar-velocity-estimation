@@ -50,7 +50,7 @@ sensorStart
 
 
 ====================
-KNOW Inconsistencies
+KNOWN Inconsistencies
 ====================
 This simulation only goes out to 128 range gates, while the radar goes out to 208 range gates.
 128 range gates = 5.5 m
