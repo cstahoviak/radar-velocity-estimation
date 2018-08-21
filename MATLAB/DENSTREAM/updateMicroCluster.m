@@ -12,6 +12,11 @@ PRINT_RADIUS = 0;
 % add point to micro-cluster
 if isempty(mc)
     % add point to NEW micro-cluster
+    % ERROR HERE: 'A dot name structure assignment is illegal when the
+    % structure is empty. Use a subscript on the structure.'
+    % Not yet resolved... only happens in infrequent circumstances.
+%     mc(1).points = P;     % possible error resolution
+%     disp('GOT HERE')
     mc.points = P;
     
     % add 't0' field to NEW o-micro-cluster
@@ -30,9 +35,9 @@ mc.CF2    = zeros(1,2);
 
 % calculate p-micro-cluster parameters, {w,CF_1,CF_2}
 for j=1:size(mc.points,1)
-    mc.weight = mc.weight + fading(mc.points(j,4));
-    mc.CF1    = mc.CF1 + fading(mc.points(j,4))*mc.points(j,1:2);
-    mc.CF2    = mc.CF2 + fading(mc.points(j,4))*mc.points(j,1:2).^2;
+    mc.weight = mc.weight + fading(mc.points(j,1));
+    mc.CF1    = mc.CF1 + fading(mc.points(j,1))*mc.points(j,2:3);
+    mc.CF2    = mc.CF2 + fading(mc.points(j,1))*mc.points(j,2:3).^2;
 end
 
 % calculate p-micro-cluster parameters, {center,radius} = f(w,CF1,CF2)
@@ -52,7 +57,7 @@ if PRINT_RADIUS
 end
 
 % unweighted radius measurement
-dist = pdist2(mc.center,mc.points(:,1:2),'euclidean');
+dist = pdist2(mc.center,mc.points(:,2:3),'euclidean');
 mc.radius = max(dist);
 if PRINT_RADIUS
     disp(mc.radius)
