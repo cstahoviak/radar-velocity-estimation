@@ -60,18 +60,19 @@ filePattern = fullfile('./cfg/', '1642_2d_noGrouping.cfg');
 numRXantenna = 4;
 numTXantenna = 2;
 
-%Calcualations to find the number of bins for doppler and range and the number of virtual antenna
+% Calcualations to find the number of bins for doppler and range and the number of virtual antenna
 numDopplerBins = maxRadialVel / radialVelRes;
 numRangeBins = maxRange / rangeRes;
 numVirtualAntenna = numRXantenna * numTXantenna;
 
 %% Looping through Serial Buffer
 
-%loops until program is killed
+% Loops until program is killed
 while running
 
     firstTime = true;
-    %a full packet will definately be held in 1280 characters or clear out the buffer if backed up
+    % A full packet will definately be held in 1280 characters or clear out the buffer if backed up
+    % This number needs to be re-calculated depending on the config file
     while length(D) < 1280 || firstTime
         if ~firstTime
             pause(0.02);   %this pause prevents this loop from exicuting too fast, but on the first time though it will just read incase it needs to catch up
