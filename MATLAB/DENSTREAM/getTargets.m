@@ -1,4 +1,4 @@
-function [ P ] = getTargets( Ntargets_max,MU,SIGMA,RADAR_SIM )
+function [ P ] = getTargets( Ntargets_max,MU,SIGMA,RADAR_SIM,AGP,chirp_params )
 %UNTITLED3 Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -10,7 +10,7 @@ allTargets = mvnrnd(MU,SIGMA);
 
 if RADAR_SIM
     % NOTE (8/16): Not working yet. Still need to work with Christopher
-    % more on getting targets from his radar simulater.
+    % on getting targets from his radar simulater (in progress)
     
     Ntargets_RDRSIM = 5;
     
@@ -25,11 +25,9 @@ if RADAR_SIM
     
     target_attribute = [RCS, points, velocity, AoA];
     
-    % NOTE: waiting on fcn to define chirp params...
-    % [ chirp_params ] = fcn( arg )
-    
-    [ targets ] = func_fmcw_radar_simulator_2018_0721( target_attribute );
-    P = [ones(Ntargets_RDRSIM,1)*t_now, targets(:,2:5), targets(:,1)];
+    [ targets ] = func_fmcw_radar_simulator_2018_0815( target_attribute, ...
+        AGP,chirp_params);
+    P = [ones(64,1)*t_now, targets(:,2:5), targets(:,1)];
     
 else
     % random number of targets between 0 and Ntargets_max
