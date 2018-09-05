@@ -36,8 +36,8 @@ target_attribute(:,1)     =  ones(N_target,1) .* 0.1;
 % x-axis is normal to the radar bore sight. 
 % x < 0 is to the left of the radar, 
 % x > 0 is the right of the radar.
-target_attribute(:,2)     =  [ 0    0  0  0];
-target_attribute(:,3)     =  [ 0.5  2  2  3];
+target_attribute(:,2)     =  [ 0.0 -0.5   0.5  1];
+target_attribute(:,3)     =  [ 0.5   1     2   3];
 
 %% Define the target speed and direction of motion
 

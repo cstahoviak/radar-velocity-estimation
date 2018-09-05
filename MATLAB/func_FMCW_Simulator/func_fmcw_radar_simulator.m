@@ -1,4 +1,6 @@
-function [radar_target_list]  = func_fmcw_radar_simulator_2018_0815(target_attribute, ...
+function [radar_target_list, range_angle_heatmap_zeroVd, ...
+   range_angle_range, range_angle_deg]  = ...
+   func_fmcw_radar_simulator(target_attributes, ...
    antenna_gain_pattern, chirp_parameters)
 
 % This routine simulates a fmcw radar and produces a target list.
@@ -9,7 +11,7 @@ function [radar_target_list]  = func_fmcw_radar_simulator_2018_0815(target_attri
 % This simulator collects a single burst (or frame) of observations.
 
 % Inputs:
-% target_attribute   -  2-D matrix of target attributes. 
+% target_attributes  -  2-D matrix of target attributes. 
 %                       Each row is a different target.
 %                       Each column is a different target attribute.
 %                       Matrix size is (N_targets,5) 
@@ -254,7 +256,7 @@ ADC_I_voltage_TxRx    = zeros(N_Tx,N_Rx,N_chirp,N_sample);
 ADC_Q_voltage_TxRx    = zeros(N_Tx,N_Rx,N_chirp,N_sample);
 
 % Determine how many targets are in scene
-[N_target,~]  = size(target_attribute);
+[N_target,~]  = size(target_attributes);
 
 %% Process each chirp
 
@@ -278,22 +280,22 @@ for k    = 1:N_chirp
       % Only need to know the current location of the target
       
       % get the target size
-      target_RCS  = target_attribute(e,1);
+      target_RCS  = target_attributes(e,1);
       
       % calculate the target gradient in x and y directions
-      target_mx    = cos((pi/180) .* target_attribute(e,5));
-      target_my    = sin((pi/180) .* target_attribute(e,5));
+      target_mx    = cos((pi/180) .* target_attributes(e,5));
+      target_my    = sin((pi/180) .* target_attributes(e,5));
       
       % update the target's location:
       % x_new  = x_old + mx*(speed*dT);
       % y_new  = y_old + my*(speed*dT);
       
-      target_x  = target_attribute(e,2) + target_mx * (target_attribute(e,4) * Tipp);
-      target_y  = target_attribute(e,3) + target_my * (target_attribute(e,4) * Tipp);
+      target_x  = target_attributes(e,2) + target_mx * (target_attributes(e,4) * Tipp);
+      target_y  = target_attributes(e,3) + target_my * (target_attributes(e,4) * Tipp);
       
       % save these new locations for the next chirp
-      target_attribute(e,2)  = target_x;
-      target_attribute(e,3)  = target_y;
+      target_attributes(e,2)  = target_x;
+      target_attributes(e,3)  = target_y;
             
       %% Process each Transmiter
       
@@ -455,18 +457,139 @@ for i = 1:N_Tx
          % get Re{range_FFT} and Im{range_FFT} voltages
          I_input  = real(squeeze(range_FFT(i,j,:,k)));
          Q_input  = imag(squeeze(range_FFT(i,j,:,k)));
-      
+         
          % apply a Hanning window to the input voltages
          I_input_win  = hann_Doppler_window .* I_input;
          Q_input_win  = hann_Doppler_window .* Q_input;
-      
+         
          [IQ_fft_complex, ~] = func_calc_complex_FFT(I_input_win, Q_input_win);
-      
+         
          range_Doppler_FFT(i,j,k,:)  = IQ_fft_complex;
          
       end % end for k loop
    end % end for j loop
 end % end for i loop
+
+%% Perform the angle_FFT for each range gate
+
+% How many points will be in the angle-FFT
+angle_Npts             = 64;
+
+% save the distance to each range_gate
+range_angle_range      = distance_each_range_gate;
+
+% The range-angle_FFT is performed on each chirp
+range_angle_heatmap    = ones(N_range,angle_Npts,N_chirp) .* NaN;
+
+% process each range gate
+for k = 1:N_range
+   
+   % process each chirp
+   for e = 1:N_chirp
+      
+      % pre-define the virtual antenna values
+      virtual_antenna_complex_value    = ones(8,1) .* NaN;
+      index                            = 0;
+      
+      % for each Tx
+      for i = 1:N_Tx
+         % process each Receiver
+         for j = 1:N_Rx
+            % get the complex values
+            index                                  = index + 1;
+            virtual_antenna_complex_value(index)   = range_FFT(i,j,e,k);
+         end % end for c loop
+      end % end for r loop
+      
+      % Get the real and imaginary parts
+      I_input  = real(virtual_antenna_complex_value);
+      Q_input  = imag(virtual_antenna_complex_value);
+      
+      [angle_FFT_power, angle_of_arrival_deg] = func_calc_angle_FFT(I_input, Q_input, angle_Npts);
+       
+      range_angle_heatmap(k,:,e) = angle_FFT_power;
+      range_angle_deg            = angle_of_arrival_deg;
+      
+   end % end for e loop
+      
+end % end for k loop
+
+%% Average all chirps for an average range_angle_heatmap_ave
+
+[m,n,~]  = size(range_angle_heatmap);
+
+range_angle_heatmap_ave    = zeros(m,n);
+
+for k = 1:m
+   for j = 1:n
+      range_angle_heatmap_ave(k,j)  = mean(squeeze(range_angle_heatmap(k,j,:)));
+   end % end for e loop
+end % end for k loop
+
+%% Construct a range_angle_heatmap for Zero Doppler velocity
+
+% How many points will be in the angle-FFT
+angle_Npts                       = 64;
+
+% The range-angle_FFT is performed on each chirp
+range_angle_heatmap_zeroVd    = ones(N_range,angle_Npts) .* NaN;
+
+% find the zero velocity index
+[~, Vd_zero_index]   = min(abs(Vd));
+
+% process each range gate
+for k = 1:N_range
+         
+      % pre-define the virtual antenna values
+      virtual_antenna_complex_value    = ones(8,1) .* NaN;
+      index                            = 0;
+      
+      % for each Tx
+      for i = 1:N_Tx
+         % process each Receiver
+         for j = 1:N_Rx
+            % get the complex values
+            index                                  = index + 1;
+            virtual_antenna_complex_value(index)   = range_Doppler_FFT(i,j,k,Vd_zero_index);
+         end % end for c loop
+      end % end for r loop
+      
+      % Get the real and imaginary parts
+      I_input  = real(virtual_antenna_complex_value);
+      Q_input  = imag(virtual_antenna_complex_value);
+      
+      [angle_FFT_power, angle_of_arrival_deg] = func_calc_angle_FFT(I_input, Q_input, angle_Npts);
+      
+      
+      range_angle_heatmap_zeroVd(k,:)  = angle_FFT_power;
+      range_angle_deg                  = angle_of_arrival_deg;
+      
+end % end for k loop
+
+%% Plot the range_angle_FFT for composite and Zero Doppler
+
+% figure
+% colormap('jet')
+% 
+% subplot(2,1,1)
+% pcolor(range_angle_deg,distance_each_range_gate,10.*log10(range_angle_heatmap_ave));
+% hold on
+% shading flat
+% colorbar
+% caxis([-100 -70])
+% xlabel('Angle [deg]')
+% ylabel('Range [m]')
+% title('a. Range-Angle Heatmap, all Velocities [dB]')
+% 
+% subplot(2,1,2)
+% pcolor(range_angle_deg,distance_each_range_gate,10.*log10(range_angle_heatmap_zeroVd));
+% hold on
+% shading flat
+% colorbar
+% caxis([-100 -70])
+% xlabel('Angle [deg]')
+% ylabel('Range [m]')
+% title('b. Range-Angle Heatmap, Zero Doppler [dB]')
 
 %% Estimate composite range_Doppler power spectrum
 
@@ -516,17 +639,17 @@ end % end for k loop
 
 %% Plot the composite range_Doppler power spectra
 
-% % The velocity bins are defined with Vd
-% % the range gates are defined with: distance_each_range_gate
-%
+% The velocity bins are defined with Vd
+% the range gates are defined with: distance_each_range_gate
+
 % d_distance  = distance_each_range_gate(6) - distance_each_range_gate(5);
 % dVd         = Vd(6) - Vd(5);
-%
+% 
 % plot_spc   = 10.*log10(composite_range_Doppler_FFT_pow);
-%
+% 
 % figure
 % colormap('jet')
-%
+% 
 % subplot(2,1,1)
 % pcolor(Vd-dVd/2,distance_each_range_gate - d_distance/2, plot_spc);
 % shading flat
@@ -534,7 +657,7 @@ end % end for k loop
 % xlabel('Doppler Velocity [m/s]')
 % ylabel('Range [m]')
 % title('Composite Range-Doppler Power Spectra [dB]')
-%
+% 
 % % remove all data below the noise_threshold
 % plot_spc_threshold    = composite_range_Doppler_FFT_pow;
 % for k = 1:N_range
@@ -543,9 +666,9 @@ end % end for k loop
 %       plot_spc_threshold(k,f) = plot_spc_threshold(k,f) .* NaN;
 %    end % end if(sum(f) > 0)
 % end % end for k loop
-%
+% 
 % plot_spc_threshold   = 10.*log10(plot_spc_threshold);
-%
+% 
 % subplot(2,1,2)
 % pcolor(Vd-dVd/2,distance_each_range_gate - d_distance/2, plot_spc_threshold);
 % shading flat
@@ -740,17 +863,17 @@ end % end for e loop
 
 %% Plot the range-Doppler and x-y plots
 
-% % The velocity bins are defined with Vd
-% % the range gates are defined with: distance_each_range_gate
-%
+% The velocity bins are defined with Vd
+% the range gates are defined with: distance_each_range_gate
+
 % d_distance  = distance_each_range_gate(6) - distance_each_range_gate(5);
 % dVd         = Vd(6) - Vd(5);
-%
+% 
 % %plot_spc   = 10.*log10(composite_range_Doppler_FFT_pow);
-%
+% 
 % figure
 % colormap('jet')
-%
+% 
 % % remove all data below the noise_threshold
 % plot_spc_threshold    = composite_range_Doppler_FFT_pow;
 % for k = 1:N_range
@@ -759,9 +882,9 @@ end % end for e loop
 %       plot_spc_threshold(k,f) = plot_spc_threshold(k,f) .* NaN;
 %    end % end if(sum(f) > 0)
 % end % end for k loop
-%
+% 
 % plot_spc_threshold   = 10.*log10(plot_spc_threshold);
-%
+% 
 % subplot(2,1,1)
 % pcolor(Vd-dVd/2,distance_each_range_gate - d_distance/2, plot_spc_threshold);
 % shading flat
@@ -780,7 +903,7 @@ end % end for e loop
 %          x_indices(f) = ones(sum(f),1)*length(Vd);
 %       end % end if((sum(f) > 0)
 %       x_data      = Vd(x_indices);
-%
+% 
 %       y_indices   = [target_indices(i,1)-1 target_indices(i,1)-1 target_indices(i,2)+1 target_indices(i,2)+1 target_indices(i,1)-1];
 %       % check the boundaries of the x_indices
 %       f  = y_indices < 1;
@@ -791,7 +914,7 @@ end % end for e loop
 %       if(sum(f) > 0)
 %          y_indices(f) = ones(sum(f),1)*length(distance_each_range_gate);
 %       end % end if((sum(f) > 0)
-%
+% 
 %       y_data      = distance_each_range_gate(y_indices);
 %       plot(x_data,y_data,'r','linewidth',0.5)
 %    end % end if(~isnan(target_num_indices(i)))
@@ -803,7 +926,7 @@ end % end for e loop
 % xlabel('Doppler Velocity [m/s]')
 % ylabel('Range [m]')
 % title('a. Composite Range-Doppler Power Spectra [dB]')
-%
+% 
 % subplot(2,1,2)
 % scatter(target_x,target_y,10,target_snr,'filled')
 % hold on
@@ -818,8 +941,60 @@ end % end for e loop
 % set(gca,'xtick',-5:0.5:5,'xticklabel',{'-5',' ','-4',' ','-3',' ','-2',' ','-1',' ','0',' ','1',' ','2',' ','3',' ','4',' ','5'});
 % set(gca,'ytick',0:0.5:5);
 % %set(gca,'xtick',start_hour:1:end_hour,'xticklabel',{'0',' ',' ','3',' ',' ','6',' ',' ','9',' ',' ','12',' ',' ','15',' ',' ','18',' ',' ','21',' ',' ','24'});
-%
+% 
 % xlabel('x-Distance [m]')
 % ylabel('y-Distance [m]')
 % title('b. Target (x,y) Estimates')
+
+%% Plot the range-angle_heatmap and radar_target_list in x-y plots
+ 
+% The velocity bins are defined with Vd
+% the range gates are defined with: distance_each_range_gate
+
+d_distance  = range_angle_range(6) - range_angle_range(5);
+d_angle     = range_angle_deg(6) - range_angle_deg(5);
+
+%plot_spc   = 10.*log10(composite_range_Doppler_FFT_pow);
+
+figure
+colormap('jet')
+
+
+subplot(2,1,1)
+pcolor(range_angle_deg - d_angle/2,range_angle_range - d_distance/2,10.*log10(range_angle_heatmap_zeroVd));
+hold on
+shading flat
+colorbar
+%caxis([-100 -70])
+xlabel('Angle [deg]')
+ylabel('Range [m]')
+title('b. Range-Angle Heatmap, Zero Doppler [dB]')
+
+axis([-40 40 0 5.5])
+grid on
+set(gca,'xtick',-40:5:40,'xticklabel',{'-40',' ','-30',' ','-20',' ','-10',' ','0',' ','10',' ','20',' ','30',' ','40'});
+set(gca,'ytick',0:0.5:5);
+xlabel('Angle [degree]')
+ylabel('Range [m]')
+title('a. Composite Range-Angle Power Spectra at zero velocity [dB]')
+
+subplot(2,1,2)
+scatter(target_x,target_y,10,target_snr,'filled')
+hold on
+plot([0 5],[0 5],'k','linewidth',1)
+plot([0 -5],[0 5],'k','linewidth',1)
+shading flat
+colorbar
+caxis([-10 20])
+hold on
+grid on
+axis([-5 5 0 5.5])
+set(gca,'xtick',-5:0.5:5,'xticklabel',{'-5',' ','-4',' ','-3',' ','-2',' ','-1',' ','0',' ','1',' ','2',' ','3',' ','4',' ','5'});
+set(gca,'ytick',0:0.5:5);
+%set(gca,'xtick',start_hour:1:end_hour,'xticklabel',{'0',' ',' ','3',' ',' ','6',' ',' ','9',' ',' ','12',' ',' ','15',' ',' ','18',' ',' ','21',' ',' ','24'});
+
+xlabel('x-Distance [m]')
+ylabel('y-Distance [m]')
+title('b. Target (x,y) Estimates')
+
 

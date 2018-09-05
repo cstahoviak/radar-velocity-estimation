@@ -18,7 +18,7 @@ running = true;
 
 %count to keep track of how many loops have been done, used to exit program after endCount loops
 count = 1;
-endCount = 1000;
+endCount = 100;
 
 %initializes data and D
 data = struct;
@@ -50,29 +50,34 @@ fopen(data_port);
 finish = onCleanup(@() close(data_port,command_port));
 
 %sets the path to the config files, just change the last input argument to change cfg files
-filePattern = fullfile('./cfg/', '1642_2d_noGrouping.cfg');
+% SET THE CONFIG FILE CORRECTLY BEFORE EACH USE
+% basic 1642 config is 1642_2d_noGrouping.cfg
+% basic 1443 config is 1443_best_range_res.cfg
+filePattern = fullfile('./cfg/', '1443_best_range_res.cfg');
 
 %sends the specified config file to the device. The files are exported from the demo visualizer
 [rangeRes, maxRange, radialVelRes, maxRadialVel] = sendConfigFile(command_port,filePattern);
 
 %% Set Number of Antenna and calculate various bins
-
+% SET NUMBER OF ANTENNA CORRECTLY BEFORE EACH USE
+% 1443 has 3 tx and 1642 has 2 tx
 numRXantenna = 4;
-numTXantenna = 2;
+numTXantenna = 3;
 
-%Calcualations to find the number of bins for doppler and range and the number of virtual antenna
+% Calcualations to find the number of bins for doppler and range and the number of virtual antenna
 numDopplerBins = maxRadialVel / radialVelRes;
 numRangeBins = maxRange / rangeRes;
 numVirtualAntenna = numRXantenna * numTXantenna;
 
 %% Looping through Serial Buffer
 
-%loops until program is killed
+% Loops until program is killed
 while running
 
     firstTime = true;
-    %a full packet will definately be held in 1280 characters or clear out the buffer if backed up
-    while length(D) < 1280 || firstTime
+    % A full packet will definately be held in 1280 characters or clear out the buffer if backed up
+    % This number needs to be re-calculated depending on the config file (want it to be as close to 1 packet as possible)
+    while length(D) < 1500 || firstTime
         if ~firstTime
             pause(0.02);   %this pause prevents this loop from exicuting too fast, but on the first time though it will just read incase it needs to catch up
         end
@@ -111,7 +116,7 @@ while running
             = findDetectedObj(offset, D, radialVelRes);
 
         case 2
-          %NOTE: Future work is to understand the PAYLOADs
+            %NOTE: Future work is to understand the PAYLOADs
             [data(count).rangeProfile.tag, data(count).rangeProfile.len, ...
             data(count).rangeProfile.PAYLOAD, addToOffset] ...
             = findRangeProfile(offset, D, numRangeBins);
@@ -152,18 +157,32 @@ while running
         if data(count).header.numObj > 0
             x = [data(count).detObj.point(:).x];
             y = [data(count).detObj.point(:).y];
-            %vel = [data(count).detObj.point(:).dopplerIdx];
+            if data(count).header.platform ~= uint32(661058)
+                z = [data(count).detObj.point(:).z];
+            end
             for i=1:length(x)
                 intensity = double(data(count).detObj.point(i).peakVal)/8000;
                 if intensity > 1
                     intensity = 1;
                 end
-                if x(i) < 3 && x(i) > -3 && y(i) < 10 && intensity > 0.1
-                    scatter(ax1,x(i),y(i),'MarkerFaceColor','b', ...
-                    'MarkerEdgeColor','b','MarkerFaceAlpha',intensity, ...
-                    'MarkerEdgeAlpha',0)
-                    xlim(ax1,[-3,3]); ylim(ax1,[0,5]);
-                    hold on;
+                if data(count).header.platform == uint32(661058)
+                    if intensity > 0.1
+                        scatter(ax1,x(i),y(i),'MarkerFaceColor','b', ...
+                        'MarkerEdgeColor','b','MarkerFaceAlpha',intensity, ...
+                        'MarkerEdgeAlpha',0)
+                        xlim(ax1,[-3,3]); ylim(ax1,[0,5]);
+                        hold on;
+                    end
+                else
+                    if intensity > 0.1
+                        scatter3(ax1,x(i),y(i),z(i),'MarkerFaceColor','b', ...
+                        'MarkerEdgeColor','b','MarkerFaceAlpha',intensity, ...
+                        'MarkerEdgeAlpha',0)
+                        xlim(ax1,[-3,3]); ylim(ax1,[0,5]); zlim(ax1,[-1,1]);
+                        hold on;
+                        % This makes the elevation obvious
+                        view(90,0);
+                    end
                 end
             end
             hold off;
@@ -192,8 +211,7 @@ disp('Deleting Figure');
 fprintf(command_port,'sensorStop');
 disp('Sent: sensorStop');
 
-%% Closing and Clearing Serial Ports
-
+%% Closing and Clearing Serial Port
 function close(port1, port2)
     fclose(port1);
     fclose(port2);
