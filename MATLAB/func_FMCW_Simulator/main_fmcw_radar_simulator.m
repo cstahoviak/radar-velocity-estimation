@@ -73,7 +73,19 @@ for k = 1:sim_N_interations
    % the range gates are defined with: distance_each_range_gate
    
    d_distance  = range_angle_range(6) - range_angle_range(5);
-   d_angle     = range_angle_deg(6) - range_angle_deg(5);
+   % d_angle changes with pointing direction
+   mm          = length(range_angle_deg);
+   d_angle     = ones(1,mm);
+   d_angle(1)  = range_angle_deg(2) - range_angle_deg(1);
+   d_angle(mm) = range_angle_deg(mm) - range_angle_deg(mm-1);
+   
+   for i = 2:mm-1
+      lt_angle    = range_angle_deg(i) - range_angle_deg(i-1);
+      rt_angle    = range_angle_deg(i+1) - range_angle_deg(i);
+      max_angle   = max([lt_angle rt_angle]);
+      
+      d_angle(i)     = max_angle;
+   end % end for i loop
    
    %plot_spc   = 10.*log10(composite_range_Doppler_FFT_pow);
    
