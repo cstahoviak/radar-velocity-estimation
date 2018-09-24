@@ -43,7 +43,7 @@ RADAR_SIM = 1;
 [ antenna_gain_pattern ] = func_antenna_gain_pattern;
 AGP = antenna_gain_pattern;
 
-% DENSTREAM PARAMETERS
+%% DENSTREAM PARAMETERS
 lambda    = 2;      % fading factor
 eps       = 0.05;    % radius of epsilon-neighborhood
 minPts    = 2;      % minimum number of points in a cluster, DBSCAN parameter
