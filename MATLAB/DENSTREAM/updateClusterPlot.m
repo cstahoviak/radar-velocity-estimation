@@ -13,7 +13,8 @@ for i=1:length(p_mc)
     Y = p_mc(i).points(:,3);
 
     plot(ax,X,Y,Style,'MarkerSize',MarkerSize,'Color',Color);
-    xlim([MIN(1)-5 MAX(1)+5]); ylim([MIN(2)-5 MAX(2)+5]);
+%     xlim([MIN(1)-5 MAX(1)+5]); ylim([MIN(2)-5 MAX(2)+5]);
+    xlim([MIN(1) MAX(1)]); ylim([MIN(2) MAX(2)]);
     hold on;
     
     % plot radius of p-micro-cluster
@@ -32,7 +33,8 @@ for i=1:length(o_mc)
     Y = o_mc(i).points(:,3);
 
     plot(ax,X,Y,Style,'MarkerSize',MarkerSize,'Color',Color);
-    xlim([MIN(1)-5 MAX(1)+5]); ylim([MIN(2)-5 MAX(2)+5]);
+%     xlim([MIN(1)-5 MAX(1)+5]); ylim([MIN(2)-5 MAX(2)+5]);
+    xlim([MIN(1) MAX(1)]); ylim([MIN(2) MAX(2)]);
     hold on;
     
 end

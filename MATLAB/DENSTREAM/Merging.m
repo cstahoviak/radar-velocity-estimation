@@ -65,6 +65,9 @@ else
         disp('MERGING: add new o-micro-cluster to outlier-buffer')
         % create new o-micro-cluster at P and insert it into the o-mc buffer
         o_mc_new = updateMicroCluster( P,[],lambda,t_now,'o' );
+        
+        % in some cases where o_mc is instantiated as a row vector instead
+        % of a column vector, this concatenation fails... problem NOT resolved
         o_mc = [o_mc; o_mc_new];
     end
     
