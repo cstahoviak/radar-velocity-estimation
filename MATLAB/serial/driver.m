@@ -53,7 +53,7 @@ finish = onCleanup(@() close(data_port,command_port));
 % SET THE CONFIG FILE CORRECTLY BEFORE EACH USE
 % basic 1642 config is 1642_2d_noGrouping.cfg
 % basic 1443 config is 1443_best_range_res.cfg
-filePattern = fullfile('./cfg/', '1443_best_range_res.cfg');
+filePattern = fullfile('./cfg/', '1642_2d.cfg');
 
 %sends the specified config file to the device. The files are exported from the demo visualizer
 [rangeRes, maxRange, radialVelRes, maxRadialVel] = sendConfigFile(command_port,filePattern);
