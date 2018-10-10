@@ -53,7 +53,7 @@ finish = onCleanup(@() close(data_port,command_port));
 % SET THE CONFIG FILE CORRECTLY BEFORE EACH USE
 % basic 1642 config is 1642_2d_noGrouping.cfg
 % basic 1443 config is 1443_best_range_res.cfg
-filePattern = fullfile('./cfg/', '1642_2d.cfg');
+filePattern = fullfile('./cfg/', 'bothHeatMap_1642_1_2.cfg');
 
 %sends the specified config file to the device. The files are exported from the demo visualizer
 [rangeRes, maxRange, radialVelRes, maxRadialVel] = sendConfigFile(command_port,filePattern);
@@ -62,7 +62,7 @@ filePattern = fullfile('./cfg/', '1642_2d.cfg');
 % SET NUMBER OF ANTENNA CORRECTLY BEFORE EACH USE
 % 1443 has 3 tx and 1642 has 2 tx
 numRXantenna = 4;
-numTXantenna = 3;
+numTXantenna = 2;
 
 % Calcualations to find the number of bins for doppler and range and the number of virtual antenna
 numDopplerBins = maxRadialVel / radialVelRes;
@@ -77,7 +77,7 @@ while running
     firstTime = true;
     % A full packet will definately be held in 1280 characters or clear out the buffer if backed up
     % This number needs to be re-calculated depending on the config file (want it to be as close to 1 packet as possible)
-    while length(D) < 1500 || firstTime
+    while length(D) < 8000 || firstTime
         if ~firstTime
             pause(0.02);   %this pause prevents this loop from exicuting too fast, but on the first time though it will just read incase it needs to catch up
         end
@@ -132,13 +132,13 @@ while running
 
 
             [data(count).azimuthHeat.tag, data(count).azimuthHeat.len, ...
-            data(count).azimuthHeat.PAYLOAD, addToOffset] ...
+            data(count).azimuthHeat.map, addToOffset] ...
             = findAzimuthHeatMap(offset, D, numRangeBins, numVirtualAntenna);
 
         case 5
 
             [data(count).dopplerHeat.tag, data(count).dopplerHeat.len, ...
-            data(count).dopplerHeat.PAYLOAD, addToOffset] ...
+            data(count).dopplerHeat.map, addToOffset] ...
             = findDopplerHeatMap(offset, D, numRangeBins, numDopplerBins);
         case 6
 
