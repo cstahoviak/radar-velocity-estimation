@@ -10,8 +10,8 @@
 clear;
 
 %set up radar data figure
-fig1 = figure(1);
-ax1 = axes('Parent',fig1);
+%fig1 = figure(1);
+%ax1 = axes('Parent',fig1);
 
 %Condition main while loop takes
 running = true;
@@ -53,7 +53,7 @@ finish = onCleanup(@() close(data_port,command_port));
 % SET THE CONFIG FILE CORRECTLY BEFORE EACH USE
 % basic 1642 config is 1642_2d_noGrouping.cfg
 % basic 1443 config is 1443_best_range_res.cfg
-filePattern = fullfile('./cfg/', 'bothHeatMap_1642_1_2.cfg');
+filePattern = fullfile('./cfg/', '1642_21_AzimuthHeat.cfg');
 
 %sends the specified config file to the device. The files are exported from the demo visualizer
 [rangeRes, maxRange, radialVelRes, maxRadialVel] = sendConfigFile(command_port,filePattern);
@@ -65,26 +65,33 @@ numRXantenna = 4;
 numTXantenna = 2;
 
 % Calcualations to find the number of bins for doppler and range and the number of virtual antenna
-numDopplerBins = maxRadialVel / radialVelRes;
-numRangeBins = maxRange / rangeRes;
-numVirtualAntenna = numRXantenna * numTXantenna;
+numDopplerBins = 256;%maxRadialVel / radialVelRes;
+numRangeBins = maxRange / rangeRes
+numVirtualAntenna = numRXantenna * numTXantenna
 
 %% Looping through Serial Buffer
 
 % Loops until program is killed
 while running
-
+    
     firstTime = true;
     % A full packet will definately be held in 1280 characters or clear out the buffer if backed up
     % This number needs to be re-calculated depending on the config file (want it to be as close to 1 packet as possible)
+    tic
     while length(D) < 8000 || firstTime
         if ~firstTime
             pause(0.02);   %this pause prevents this loop from exicuting too fast, but on the first time though it will just read incase it needs to catch up
         end
         firstTime = false;
-
-        if data_port.BytesAvailable > 200   %if there are more than 100 bytes available read in the data and add to end of D
+        disp(data_port.BytesAvailable)
+        if data_port.BytesAvailable > 0   %if there are more than 100 bytes available read in the data and add to end of D
             D = [D; fread(data_port,data_port.BytesAvailable)];
+        end
+        disp("Hi")
+        disp(length(D))
+        time = toc;
+        if(time > 2)
+            break;
         end
     end
 
@@ -150,8 +157,8 @@ while running
         end
     end
 
-    %% Plotting the points
-
+%% Plotting the points
+%{
     if length(D) < 3000
         %plots the x,y and intencity - does it every other time in order to not cause a build up of data
         if data(count).header.numObj > 0
@@ -188,7 +195,7 @@ while running
             hold off;
         end
     end
-
+%}
     %% Clear out data and check count
 
     %clears out the used data packet
@@ -196,7 +203,7 @@ while running
 
     %increments count to keep track of number of loops done
     count = count + 1;
-
+    disp(count)
     %ends program after endCount packets are collected
     if count > endCount
         running = false;
@@ -205,7 +212,7 @@ while running
 end
 
 % Delete this figure at end of program
-delete(fig1);
+%delete(fig1);
 disp('Deleting Figure');
 % Tells radar to stop transmitting
 fprintf(command_port,'sensorStop');
