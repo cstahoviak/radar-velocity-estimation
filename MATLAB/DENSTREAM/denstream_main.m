@@ -20,7 +20,7 @@ close ALL;
 %% DENSTREAM PARAMETERS
 
 lambda    = 2;      % fading factor
-eps       = 0.8;    % radius of epsilon-neighborhood
+eps       = 0.25;    % radius of epsilon-neighborhood
 minPts    = 2;      % minimum number of points in a cluster, DBSCAN parameter
 beta      = 0.001;    % parameter to distinguish between relative weights of p- and o-micro-clusters
 mu        = 3;      % core micro-cluster weught, integer value
@@ -34,7 +34,7 @@ distType = 'euclid';
 %% RADAR SIMULATOR PARAMETERS
 
 % enable Radar Simulator
-RADAR_SIM = 1;
+RADAR_SIM = 0;
 
 % define chirp parameters
 [ chirp_params ] = func_defineChirpParameters( 'best_range_res' );
@@ -44,12 +44,12 @@ RADAR_SIM = 1;
 AGP = antenna_gain_pattern;
 
 %% DENSTREAM PARAMETERS
-lambda    = 2;      % fading factor
-eps       = 0.05;    % radius of epsilon-neighborhood
-minPts    = 2;      % minimum number of points in a cluster, DBSCAN parameter
-beta      = 0.001;    % parameter to distinguish between relative weights of p- and o-micro-clusters
-mu        = 3;      % core micro-cluster weught, integer value
-Tp        = 3;      % checking period for cluster weights, i.e. "pruning" period
+% lambda    = 2;      % fading factor
+% eps       = 0.05;    % radius of epsilon-neighborhood
+% minPts    = 2;      % minimum number of points in a cluster, DBSCAN parameter
+% beta      = 0.001;    % parameter to distinguish between relative weights of p- and o-micro-clusters
+% mu        = 3;      % core micro-cluster weught, integer value
+% Tp        = 3;      % checking period for cluster weights, i.e. "pruning" period
 
 
 %% ADDITIONAL PARAMETERS
@@ -120,7 +120,7 @@ pause(waitTime);
 %% MAIN LOOP
 
 % total number of radar scans to be merged with map via DENSTREAM
-Nscans = 5;
+Nscans = 10;
 
 count = 1;
 while(count <= Nscans)
