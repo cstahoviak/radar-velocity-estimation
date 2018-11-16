@@ -110,12 +110,12 @@ function ldr_callback(~,ldr_pc2,ax1)
     %
 end
 
-
 function scanse_callback(~,scanse_pc2,ax1)
     scanse_xyz = readXYZ(scanse_pc2);
     
     plot_pc2(scanse_xyz,'scanse',ax1)
 end
+
 function plot_pc2(data,type,ax)
     % persist both rdr_data and ldr_data from one function call to the next
     persistent rdr_data;
