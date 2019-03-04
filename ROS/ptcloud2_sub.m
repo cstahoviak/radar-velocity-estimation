@@ -19,7 +19,6 @@ fig1 = figure(1);
 ax1 = axes('Parent',fig1);
 grid on;
 
-
 % variables for saving all data
 % Note: these will change for each bag file
 global rdr_all rdr_last_index;

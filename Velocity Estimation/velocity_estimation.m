@@ -7,8 +7,9 @@ close all;
 %% LOAD DATA
 
 % load radar data
-% load('/home/carl/Data/subT/vicon_velocity_estimate_110818/1642/mat_files/linear_best_velocity_res_pkgrp_doppler.mat')
-load('C:\Users\carlc\Google Drive\Boulder\MS Thesis Project\Data\bagfiles\vicon_velocity_estimate_110818\1642\mat_files\linear_best_velocity_res_pkgrp_doppler.mat')
+load('/home/carl/Data/subT/Fleming/single_radar_velocity_estimate_2018_11_18/1642/mat_files/linear_best_velocity_res.mat')
+% load('/home/carl/Data/subT/vicon_velocity_estimate_110818/1642/mat_files/linear_best_range_res.mat')
+% load('C:\Users\carlc\Google Drive\Boulder\MS Thesis Project\Data\bagfiles\vicon_velocity_estimate_110818\1642\mat_files\linear_best_velocity_res_pkgrp_doppler.mat')
 
 % undo RVIZ plotting defaults
 radar_y = -radar_y;
@@ -199,6 +200,8 @@ doppler_estimate_max = zeros(size(radar_doppler,1),1);
 doppler_estimate_mean_err = zeros(size(radar_doppler,1),1);
 doppler_estimate_max_err = zeros(size(radar_doppler,1),1);
 
+idx_array = zeros(5, size(radar_doppler,1));
+
 for i=1:size(radar_doppler,1)
 
     % extract all non-NaN values from row
@@ -221,6 +224,9 @@ for i=1:size(radar_doppler,1)
     idx_angle = (abs(rad2deg(radar_angle(i,:))) < angle_thres);
     idx_range = (radar_range(i,:) > range_thres);
     idx_intensity = (radar_intensity(i,:) > intensity_thres);
+    
+    % store indix values for Python troubleshooting
+    idx_array(1:4,i) = [sum(idx); sum(idx_angle); sum(idx_range); sum(idx_intensity)];
 
     % create time vectors
     t_nonNaN   = radar_time_second(i,1)*ones(1,size(doppler_nonNaN,2));
@@ -288,6 +294,8 @@ for i=1:size(radar_doppler,1)
     
     % apply (angle,range,intensity) filtering to doppler data
     idx_ARI = idx & idx_angle & idx_range & idx_intensity;
+    idx_array(5,i) = sum(idx_ARI);
+%     disp(sum(idx_ARI))
     doppler_filter_all = radar_doppler(i,idx_ARI);
     t_all = radar_time_second(i,1)*ones(1,size(doppler_filter_all,2));
     h11 = scatter(ax11,t_all,-doppler_filter_all,sz,'b','filled');

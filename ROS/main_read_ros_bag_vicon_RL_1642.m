@@ -16,13 +16,20 @@
 % ===========================================
 
 % Input file information
-input_directory   = '/home/carl/Data/subT/vicon_velocity_estimate_110818/1443/';
-filename_root     = 'linear_best_velocity_res_pkgrp_doppler';
+input_directory   = '/home/carl/Data/subT/Fleming/multiradar_2019_02_13/';
+filename_root     = 'multiradar_2019-02-13_rangeRes_0-04_velRes_0-09_loop2x';
 input_suffix      = '.bag';
 
 % Output file information
-output_directory  = '/home/carl/Data/subT/vicon_velocity_estimate_110818/1443/mat_files/';
+output_directory  = '/home/carl/Data/subT/Fleming/multiradar_2019_02_13/mat_files/';
 output_suffix     = '.mat';
+
+% topic information
+radar_topic       = 'radar_fwd/mmWaveDataHdl/RScan';
+vrpn_twist_topic  = '/vrpn_client_node/RadarQuad/twist';
+vrpn_pose_topic   = '/vrpn_client_node/RadarQuad/pose';
+odom_topic        = '/odom';
+tf_topic          = '/tf';
 
 % ============================================
 % no User changes are needed below this point.
@@ -92,7 +99,7 @@ bag.MessageList;
 %% Get the radar messages
 % =======================
 
-radar_bag   = select(bag, 'Topic', '/mmWaveDataHdl/RScan');
+radar_bag   = select(bag, 'Topic', radar_topic);
 % The properties are:
 %            FilePath: 'C:\Projects_2018_10\DARPA\Fleming_Vicon_2018_1107\bag_files\1642_static_RL_cfar_5120.bag'
 %           StartTime: 1.5416e+09
@@ -181,7 +188,7 @@ end % end for r loop
 %% Get the Vicon Twist messages
 % =======================
 
-twist_bag   = select(bag, 'Topic', '/vrpn_client_node/SubT/twist');
+twist_bag   = select(bag, 'Topic', vrpn_twist_topic);
 
 % The properties are:
 
@@ -192,7 +199,7 @@ time_stamp_table  = twist_bag.MessageList(:,1);
 twist_time_stamp  = time_stamp_table{:,1};
 twist_time_second = twist_time_stamp - twist_time_stamp(1);
 
-%% Read all messages
+%% Read all Twist messages
 
 twist_messages = readMessages(twist_bag);
 
@@ -224,13 +231,7 @@ twist_messages = readMessages(twist_bag);
 %               Z: 0.0264
 
 
-%% Display the radar Field Names
-
-%radar_messages{1}.Fields.Name
-
-% ans =   'x' 'y' 'z' 'intensity' 'range' 'doppler'
-
-%% Get all radar measurements, for all variables, and for all messages
+%% Get all Twist measurements, for all variables, and for all messages
 
 % pre-define the output variables
 [m,~]    = size(twist_messages);
@@ -255,12 +256,96 @@ for r = 1:m
    
 end % end for r loop
 
+%% Get the Vicon Pose messages
+% =======================
+
+pose_bag   = select(bag, 'Topic', vrpn_pose_topic);
+
+% The properties are:
+
+
+%% Get the time stamp for all Pose messages
+
+time_stamp_table  = pose_bag.MessageList(:,1);
+pose_time_stamp  = time_stamp_table{:,1};
+pose_time_second = pose_time_stamp - pose_time_stamp(1);
+
+%% Read all Pose messages
+
+pose_messages = readMessages(pose_bag);
+
+% return;
+
+
+%% Display the contents of one pose message cell
+
+% pose_messages{1}
+%   ROS PoseStamped message with properties:
+% 
+%     MessageType: 'geometry_msgs/PoseStamped'
+%          Header: [1×1 Header]
+%            Pose: [1×1 Pose]
+
+% pose_messages{1}.Pose
+%   ROS Pose message with properties:
+% 
+%     MessageType: 'geometry_msgs/Pose'
+%        Position: [1×1 Point]
+%     Orientation: [1×1 Quaternion]
+
+% pose_messages{1}.Pose.Position
+%   ROS Point message with properties:
+% 
+%    MessageType: 'geometry_msgs/Point'
+%               X: -1.9967
+%               Y: 0.3000
+%               Z: 0.1421
+
+% pose_messages{1}.Pose.Orientation
+%   ROS Quaternion message with properties:
+% 
+%    MessageType: 'geometry_msgs/Quaternion'
+%               X: 0.0026
+%               Y: -0.0098
+%               Z: -0.0153
+%               W: 0.9998
+
+
+%% Get all Pose measurements, for all variables, and for all messages
+
+% pre-define the output variables
+[m,~]    = size(pose_messages);
+
+pose_position_x           = ones(m,1) .* NaN;
+pose_position_y           = ones(m,1) .* NaN;
+pose_position_z           = ones(m,1) .* NaN;
+pose_orientation_x        = ones(m,1) .* NaN;
+pose_orientation_y        = ones(m,1) .* NaN;
+pose_orientation_z        = ones(m,1) .* NaN;
+pose_orientation_w        = ones(m,1) .* NaN;
+
+% process each meassage
+for r = 1:m
+   pose_position_x(r) = pose_messages{r}.Pose.Position.X;
+   pose_position_y(r) = pose_messages{r}.Pose.Position.Y;
+   pose_position_z(r) = pose_messages{r}.Pose.Position.Z;
+   
+   pose_orientation_x(r) = pose_messages{r}.Pose.Orientation.X;
+   pose_orientation_y(r) = pose_messages{r}.Pose.Orientation.Y;
+   pose_orientation_z(r) = pose_messages{r}.Pose.Orientation.Z;
+   pose_orientation_w(r) = pose_messages{r}.Pose.Orientation.W;
+   
+end % end for r loop
+
+
 %% Save Radar messages to a mat-file
 
-save(output_filename,'radar_time_stamp','radar_time_second',...
-  'radar_x','radar_y','radar_z','radar_range','radar_intensity','radar_doppler',...
-  'twist_time_stamp','twist_time_second',...
-  'twist_linear_x','twist_linear_y','twist_linear_z','twist_angular_x','twist_angular_y','twist_angular_z')
+save(output_filename,'radar_time_stamp','radar_time_second', ...
+  'radar_x','radar_y','radar_z','radar_range','radar_intensity','radar_doppler', ...
+  'twist_time_stamp','twist_time_second', ...
+  'twist_linear_x','twist_linear_y','twist_linear_z','twist_angular_x','twist_angular_y','twist_angular_z', ...
+  'pose_time_stamp','pose_time_second', ...
+  'pose_position_x', 'pose_position_y', 'pose_position_z', 'pose_orientation_x', 'pose_orientation_y', 'pose_orientation_z', 'pose_orientation_w')
 
 return;
 
