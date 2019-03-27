@@ -1,5 +1,9 @@
 %% Header
 
+%%% Filename:   velocity_estimation.m
+%%% Author:     Carl Stahoviak
+%%% Edited:     03/04/2019  
+
 clear;
 clc;
 close all;
@@ -7,7 +11,8 @@ close all;
 %% LOAD DATA
 
 % load radar data
-load('/home/carl/Data/subT/Fleming/single_radar_velocity_estimate_2018_11_18/1642/mat_files/linear_best_velocity_res.mat')
+load('/home/carl/Data/subT/Fleming/single_radar_velocity_estimate_2018_11_18/1642/mat_files/linear_best_velocity_res_pkgrp_doppler.mat')
+% load('/home/carl/Data/subT/Fleming/multiradar_2019_02_13/mat_files/multiradar_2019-02-13_rangeRes_0-04_velRes_0-09_loop.mat')
 % load('/home/carl/Data/subT/vicon_velocity_estimate_110818/1642/mat_files/linear_best_range_res.mat')
 % load('C:\Users\carlc\Google Drive\Boulder\MS Thesis Project\Data\bagfiles\vicon_velocity_estimate_110818\1642\mat_files\linear_best_velocity_res_pkgrp_doppler.mat')
 
@@ -19,7 +24,7 @@ radar_angle = atan(radar_y./radar_x);   % [rad]
 
 %% CREATE PLOTS
 
-plot_polar = false;
+plot_polar = true;
 
 % set y-axis limits
 vx_ymax = 2.5;
@@ -188,7 +193,7 @@ ylim([vx_ymin vx_ymax]); xlim([0 max([radar_time_second(end) twist_time_second(e
 % angle_thres     = 90;               % [deg]
 % intensity_thres = 0;                % [dB]
 
-range_thres     = 1.0;              % [m]
+range_thres     = 0.5;              % [m]
 angle_thres     = 30;               % [deg]
 intensity_thres = 23;               % [dB]
 thresholds = [angle_thres, range_thres, intensity_thres];
@@ -200,6 +205,7 @@ doppler_estimate_max = zeros(size(radar_doppler,1),1);
 doppler_estimate_mean_err = zeros(size(radar_doppler,1),1);
 doppler_estimate_max_err = zeros(size(radar_doppler,1),1);
 
+% for python troubleshooting
 idx_array = zeros(5, size(radar_doppler,1));
 
 for i=1:size(radar_doppler,1)
@@ -225,7 +231,7 @@ for i=1:size(radar_doppler,1)
     idx_range = (radar_range(i,:) > range_thres);
     idx_intensity = (radar_intensity(i,:) > intensity_thres);
     
-    % store indix values for Python troubleshooting
+    % store index values for Python troubleshooting
     idx_array(1:4,i) = [sum(idx); sum(idx_angle); sum(idx_range); sum(idx_intensity)];
 
     % create time vectors
@@ -237,14 +243,6 @@ for i=1:size(radar_doppler,1)
     % plot all non-NaN data at each time step
     h1_1 = scatter(ax1,t,-doppler,sz,'b','filled');
     h1_2 = scatter(ax1,t_isZero,-radar_doppler(i,idx_isZero),sz,'r','filled');
-    
-    % get velocity components (in Quad frame)
-%     [ v_x, v_y ] = getVelocity( radar_doppler(i,idx_nonNaN), radar_angle(i,idx_nonNaN) );
-%     v_x_nonZero = v_x((v_x ~= 0));
-%     v_x_nonZero_avg(i,1) = mean(v_x_nonZero);
-%     
-%     v_y_nonZero = v_y((v_y ~= 0));
-%     v_y_nonZero_avg(i,1) = mean(v_y_nonZero);
     
     % plot (non-zero) doppler velocity of Quad
     h2 = scatter(ax2,t_nonZero,-doppler_nonZero,sz,'b','filled');
@@ -259,8 +257,8 @@ for i=1:size(radar_doppler,1)
     scatter(ax5,radar_y(i,idx_isZero),radar_x(i,idx_isZero),sz,'r','filled');
     
     if plot_polar
-        polarscatter(ax6,radar_angle(i,idx_range),radar_range(i,idx_range),sz,'b','filled');
-        polarscatter(ax6,radar_angle(i,~idx_range),radar_range(i,~idx_range),sz,'r','filled');
+        polarscatter(ax6,radar_angle(i,idx),radar_range(i,idx),sz,'b','filled');
+        polarscatter(ax6,radar_angle(i,~idx),radar_range(i,~idx),sz,'r','filled');
     end
     
     % apply color gradient based on target angle from boresight
@@ -394,16 +392,6 @@ set(h1,'Interpreter','latex','Location','best');
 % Averaging
 %   1. Weighted averaging - assign weights by intensity
 
-% for i=1:size(radar_doppler,1)
-%     
-%     
-%     
-% end
-
-function [ v_x_hat ] = estimateForwardVelocity( thresholds, radar_doppler )
-
-end
-
 function [ ] = addViconData( h, ax, time, data )
 
     h(end+1) = plot(ax,time,data,'color',[0.9290, 0.6940, 0.1250],'LineWidth',1);
@@ -412,12 +400,5 @@ function [ ] = addViconData( h, ax, time, data )
     
     % move Vicon Data to back of plot
     uistack(h(end),'bottom')
-
-end
-
-function [ v_x, v_y ] = getVelocity( doppler,theta )
-
-    v_x = -doppler.*cos(theta);
-    v_y = -doppler.*sin(theta);
 
 end
