@@ -85,7 +85,7 @@ filter_nonZero = true;
 
 % define MLESAC parameters
 sampleSize = 2;     % problem uniquely-determined for 2 targets
-maxDistance = 0.1;  % not yet sure what this should be...
+maxDistance = 0.1;  % only roughly tuned at this point
 
 conditionNum_thres = 100;
 
@@ -106,10 +106,10 @@ hdl = legend(ax_h(1), '$v_x$','$v_y$','$v_z$');
 set(hdl,'Interpreter','latex','Location','best');
 
 % plot euler angles - to visualize pitch and roll
-plot(ax_h(9), pose_time_second, rad2deg(euler_angles(:,2:3)));
-hdl = legend(ax_h(9), '$pitch, \phi$','$roll, \theta$');
+plot(ax_h(2), pose_time_second, rad2deg(euler_angles(:,2:3)));
+hdl = legend(ax_h(2), 'pitch, $\phi$', 'roll, $\theta$');
 set(hdl,'Interpreter','latex','Location','best');
-ylim(ax_h(9),[-20,20])
+ylim(ax_h(2),[-20,20]);
 
 
 %% Implement Estimation Scheme
@@ -158,8 +158,8 @@ for i=1:NScans
     
     % plot these values against the truth to see if they make sense!
     time = ones(1,size(vhat_bf_all,2))*radar_time_second(i);
-    scatter(ax_h(3),time,vhat_bf_all(1,:),sz,colors(1,:),'filled');
-    scatter(ax_h(4),time,vhat_bf_all(2,:),sz,colors(3,:),'filled');
+    scatter(ax_h(4),time,vhat_bf_all(1,:),sz,colors(1,:),'filled');
+    scatter(ax_h(5),time,vhat_bf_all(2,:),sz,colors(3,:),'filled');
     
     % get MLESAC (M-estimator RANSAC) model and inlier set
     [ model_mlesac, inlier_idx ] = MLESAC( radar_doppler(i,idx_pre), ...
@@ -174,8 +174,8 @@ for i=1:NScans
         doppler(inlier_idx'), angle(inlier_idx'), conditionNum_thres);
     vhat_bf_inlier(i,:) = model_bf_inlier';
     time = ones(1,size(vhat_bf_all_inlier,2))*radar_time_second(i);
-    scatter(ax_h(7),time,vhat_bf_all_inlier(1,:),sz,colors(1,:),'filled');
-    scatter(ax_h(8),time,vhat_bf_all_inlier(2,:),sz,colors(3,:),'filled');
+    scatter(ax_h(8),time,vhat_bf_all_inlier(1,:),sz,colors(1,:),'filled');
+    scatter(ax_h(9),time,vhat_bf_all_inlier(2,:),sz,colors(3,:),'filled');
     
     % Orthogonal Distance Regression (ODR) on inlier set
     
@@ -204,34 +204,34 @@ RMSE_bf_inlier = getDopplerRMSE( vhat_bf_inlier, radar_time_second, ...
 %% Plot Data
 
 % forward velocity (v_x) estimate vs. truth - OLD METHOD
-plot(ax_h(2), twist_time_second,-twist_linear_body(:,1),'color',colors(2,:));
-plot(ax_h(2), radar_time_second,vx_hat_mean,'color',colors(1,:));
-plot(ax_h(2), radar_time_second,vx_hat_max,'color',colors(5,:));
-hdl = legend(ax_h(2), '$v_x$ Vicon','mean estimate','max estimate');
+plot(ax_h(3), twist_time_second,-twist_linear_body(:,1),'color',colors(2,:));
+plot(ax_h(3), radar_time_second,vx_hat_mean,'color',colors(1,:));
+plot(ax_h(3), radar_time_second,vx_hat_max,'color',colors(5,:));
+hdl = legend(ax_h(3), '$v_x$ Vicon','mean estimate','max estimate');
 set(hdl,'Interpreter','latex','Location','best');
 
 % add estimate + truth data to plot 3 - brute force method
-plot(ax_h(3),twist_time_second,twist_linear_body(:,1),...
+plot(ax_h(4),twist_time_second,twist_linear_body(:,1),...
     'color',colors(2,:),'LineWidth',2);
-plot(ax_h(3),radar_time_second,vhat_bf(:,1),'k','LineWidth',1);
-plot(ax_h(4),twist_time_second,twist_linear_body(:,2),...
+plot(ax_h(4),radar_time_second,vhat_bf(:,1),'k','LineWidth',1);
+plot(ax_h(5),twist_time_second,twist_linear_body(:,2),...
     'color',colors(2,:),'LineWidth',2);
-plot(ax_h(4),radar_time_second,vhat_bf(:,2),'k','LineWidth',1);
-ylim(ax_h(3),[-4,4]); ylim(ax_h(4),[-4,4]);
+plot(ax_h(5),radar_time_second,vhat_bf(:,2),'k','LineWidth',1);
+ylim(ax_h(4),[-4,4]); ylim(ax_h(5),[-4,4]);
 
 % plot MLESAC estimate
-plot(ax_h(5),twist_time_second,twist_linear_body(:,1),...
+plot(ax_h(6),twist_time_second,twist_linear_body(:,1),...
     'color',colors(2,:),'LineWidth',2);
-plot(ax_h(5),radar_time_second,vhat_MLESAC(:,1),'k','LineWidth',1);
-plot(ax_h(6),twist_time_second,twist_linear_body(:,2),...
+plot(ax_h(6),radar_time_second,vhat_MLESAC(:,1),'k','LineWidth',1);
+plot(ax_h(7),twist_time_second,twist_linear_body(:,2),...
     'color',colors(2,:),'LineWidth',2);
-plot(ax_h(6),radar_time_second,vhat_MLESAC(:,2),'k','LineWidth',1);
+plot(ax_h(7),radar_time_second,vhat_MLESAC(:,2),'k','LineWidth',1);
 
 % inlier set - brute force method
-plot(ax_h(7),twist_time_second,twist_linear_body(:,1),...
+plot(ax_h(8),twist_time_second,twist_linear_body(:,1),...
     'color',colors(2,:),'LineWidth',2);
-plot(ax_h(7),radar_time_second,vhat_bf_inlier(:,1),'k','LineWidth',1);
-plot(ax_h(8),twist_time_second,twist_linear_body(:,2),...
+plot(ax_h(8),radar_time_second,vhat_bf_inlier(:,1),'k','LineWidth',1);
+plot(ax_h(9),twist_time_second,twist_linear_body(:,2),...
     'color',colors(2,:),'LineWidth',2);
-plot(ax_h(8),radar_time_second,vhat_bf_inlier(:,2),'k','LineWidth',1);
+plot(ax_h(9),radar_time_second,vhat_bf_inlier(:,2),'k','LineWidth',1);
 
