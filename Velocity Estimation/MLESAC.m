@@ -1,12 +1,9 @@
-function [ model, inlier_idx ] = MLESAC( radar_doppler, radar_angle )
+function [ model, inlier_idx ] = MLESAC( radar_doppler, radar_angle, ...
+    sampleSize, maxDistance, conditionNum_thres)
 %UNTITLED7 Summary of this function goes here
 %   Detailed explanation goes here
 
 % NOTE: radar_angle and radar_doppler are row vectors
-
-% define RANSAC parameters
-sampleSize = 2;     % problem uniquely-determined for 2 targets
-maxDistance = 0.1;   % not yet sure what this should be...
 
 % An mxn matrix. Each row represents a single data point
 % in the set to be modeled
@@ -15,13 +12,14 @@ Ntargets = size(data,1);
 
 if Ntargets >= 5
     % ransac requires a minimum of 5 targets to operate on
-    [ model,inlier_idx ] = ransac(data, @MLESAC_fitFcn, @MLESAC_distFcn, ...
-        sampleSize, maxDistance);
+    [ model,inlier_idx ] = ransac(data, @MLESAC_fitFcn, ...
+        @MLESAC_distFcn, sampleSize, maxDistance);
 else
     % ransac requires a minimum of 5 targets to operate on. In the case
     % where there are less than 5 targets, we will use the brute force
     % estimation scheme in place of MLESAC
-    [ model, ~ ] = getBruteForceEstimate_fwd( radar_doppler, radar_angle);
+    [ model, ~ ] = getBruteForceEstimate_fwd( radar_doppler, ...
+        radar_angle, conditionNum_thres);
     inlier_idx = ones(Ntargets,1);
 end
 
@@ -31,15 +29,14 @@ function [ model ] = MLESAC_fitFcn( data )
     %%% Compute [vx, vy] from [theta, vr]
     % solve uniquely-determined problem for pair of targets
     
-%     disp(data)
+    % need to figure out how to pass this value in...
+    conditionNum_thres = 100;
 
-    radar_angle = data(:,1);      % [rad]
+    radar_angle   = data(:,1);    % [rad]
     radar_doppler = data(:,2);    % [m/s]
-
-    M = [cos(radar_angle(1)), sin(radar_angle(1));
-         cos(radar_angle(2)), sin(radar_angle(2))];
     
-    v_hat = M\[radar_doppler(1); radar_doppler(2)];
+    v_hat = doppler2BodyFrameVelocities( radar_doppler, ...
+    radar_angle, conditionNum_thres);
     
     model = v_hat;  % v_hat = [vx_hat; vy_hat]
 end
@@ -50,7 +47,7 @@ function [ distances ] = MLESAC_distFcn( model, data )
     Ntargets = size(data,1);
     distances = zeros(Ntargets,1);
 
-    radar_angle = data(:,1);      % [rad]
+    radar_angle   = data(:,1);    % [rad]
     radar_doppler = data(:,2);    % [m/s]
     
     doppler_predicted = simulateRadarDoppler2D(model, radar_angle);

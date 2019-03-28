@@ -11,17 +11,25 @@ close all;
 format compact
 
 %%% TODO Items
-    % 1. Implement
+    % 1. Use fmincon (or similar) to search over the set of possible
+    % maxDistance values that will minimize the RMSE value of the estimates
+    % provided by MLESAC
     
 %%% General Notes:
     % 1. Need to perform a timestamp alignment between the Vicon system and
-    % the radar data... Chris mentioned this, not sure how to do it though
+    % the radar data... Chris mentioned this, not sure how to do it though.
+    
+    % 2. There is a 'hole' in the MLESAC estimate where the quad is
+    % momentarily stationary (zero doppler). By throwing away ALL zero
+    % doppler points (and not just those that are spurious data points,
+    % e.g. constant intensity, near-range sensor interference), we lose the
+    % ability to provide a velocity estimate when the quad is stationary
 
 %% Load Data and ROS bag
 
 path     = '/home/carl/Data/subT/Fleming/single_radar_velocity_estimate_2018_11_18/';
 device   = '1642/';
-filename = 'linear_best_velocity_res_pkgrp_doppler';
+filename = 'zigzag_best_velocity_res_pkgrp_doppler';
 filetype = '.mat';
 
 mat_file = strcat(path,device,'/mat_files/',filename,filetype);
@@ -64,8 +72,9 @@ orientation = [pose_orientation_x, ...
                pose_orientation_z, ...
                pose_orientation_w];
 
-%% Set Filtering Thresholds
+%% Define Constants
 
+% set filtering thresholds
 range_thres     = 0.5;      % [m]
 angle_thres     = 30;       % [deg]
 intensity_thres = 23;       % [dB]
@@ -74,10 +83,19 @@ thresholds_AIR  = [angle_thres; intensity_thres; range_thres];
 % remove zero doppler velocity points?
 filter_nonZero = true;
 
+% define MLESAC parameters
+sampleSize = 2;     % problem uniquely-determined for 2 targets
+maxDistance = 0.1;  % not yet sure what this should be...
+
+conditionNum_thres = 100;
+
 %% Get Vicon Body-Frame Velocities
 
 twist_linear = [twist_linear_x, twist_linear_y, twist_linear_z];
 twist_linear_body = getBodyFrameVelocities( twist_linear, orientation );
+
+% get euler angles
+euler_angles = quat2eul(orientation);
 
 % undo RVIZ plotting defaults
 twist_linear_body(:,2) = -twist_linear_body(:,2);
@@ -87,6 +105,12 @@ plot(ax_h(1), twist_time_second, twist_linear_body)
 hdl = legend(ax_h(1), '$v_x$','$v_y$','$v_z$');
 set(hdl,'Interpreter','latex','Location','best');
 
+% plot euler angles - to visualize pitch and roll
+plot(ax_h(9), pose_time_second, rad2deg(euler_angles(:,2:3)));
+hdl = legend(ax_h(9), '$pitch, \phi$','$roll, \theta$');
+set(hdl,'Interpreter','latex','Location','best');
+ylim(ax_h(9),[-20,20])
+
 
 %% Implement Estimation Scheme
 
@@ -94,10 +118,11 @@ set(hdl,'Interpreter','latex','Location','best');
 NScans = size(radar_doppler,1);
 
 % init estimate vectors
-vx_hat_mean  = zeros(NScans,1);
-vx_hat_max   = zeros(NScans,1);
-vhat_bf      = zeros(NScans,2);
-vhat_MLESAC = zeros(NScans,2);
+vx_hat_mean    = zeros(NScans,1);
+vx_hat_max     = zeros(NScans,1);
+vhat_bf        = zeros(NScans,2);
+vhat_bf_inlier = zeros(NScans,2);
+vhat_MLESAC    = zeros(NScans,2);
 
 % init estimate error vectors
 vx_hat_mean_err = zeros(NScans,1);
@@ -106,6 +131,8 @@ vx_hat_max_err  = zeros(NScans,1);
 for i=1:NScans
     
     % remove NaN and (possibly) zero-doppler values
+    % NOTE: zero-doppler values have been shown to be artifacts of constant
+    % intensity targets that are not representative of physical targets
     idx_pre = prefilter(radar_doppler(i,:), filter_nonZero);
     
     % concatenate radar data (into column vectors)
@@ -123,30 +150,39 @@ for i=1:NScans
         twist_time_second, -twist_linear_body );
        
     % get 'brute force' estimate of forward/lateral body-frame vel.
-%     [~,ix] = min( abs ( twist_time_second - radar_time_second(i) ) );
-%     fprintf('\nVicon Velocity: [vx, vy] = [%.4f, %.4f]\n', ...
-%         twist_linear_body(ix,1), twist_linear_body(ix,2));
-    [ model_bf, v_hat_bf_all ] = getBruteForceEstimate_fwd( ...
-        radar_doppler(i,idx_pre & idx_AIR), radar_angle(i,idx_pre & idx_AIR));
+%     [ model_bf, v_hat_bf_all ] = getBruteForceEstimate_fwd( ...
+%         radar_doppler(i,idx_pre & idx_AIR), radar_angle(i,idx_pre & idx_AIR));
+    [ model_bf, vhat_bf_all ] = getBruteForceEstimate_fwd( ...
+        radar_doppler(i,idx_pre), radar_angle(i,idx_pre), conditionNum_thres);
     vhat_bf(i,:) = model_bf';
     
     % plot these values against the truth to see if they make sense!
-    time_BF = ones(1,size(v_hat_bf_all,2))*radar_time_second(i);
-    scatter(ax_h(3),time_BF,v_hat_bf_all(1,:),sz,colors(1,:),'filled');
-    scatter(ax_h(4),time_BF,v_hat_bf_all(2,:),sz,colors(3,:),'filled');
+    time = ones(1,size(vhat_bf_all,2))*radar_time_second(i);
+    scatter(ax_h(3),time,vhat_bf_all(1,:),sz,colors(1,:),'filled');
+    scatter(ax_h(4),time,vhat_bf_all(2,:),sz,colors(3,:),'filled');
     
-    % get MLESAC (M-estimator RANSAC) inlier set
+    % get MLESAC (M-estimator RANSAC) model and inlier set
     [ model_mlesac, inlier_idx ] = MLESAC( radar_doppler(i,idx_pre), ...
-        radar_angle(i,idx_pre) );
+        radar_angle(i,idx_pre), sampleSize, maxDistance, conditionNum_thres );
     vhat_MLESAC(i,:) = model_mlesac';
-    disp([length(radar_doppler(i,idx_pre)), length(inlier_idx)])
+%     disp([length(radar_doppler(i,idx_pre)), sum(inlier_idx)])
     
-    % re-run brute-force solver on inlier_idx??
+    % re-run brute-force solver on inlier_idx
+    doppler = radar_doppler(i,idx_pre);
+    angle = radar_angle(i,idx_pre);
+    [ model_bf_inlier, vhat_bf_all_inlier ] = getBruteForceEstimate_fwd( ...
+        doppler(inlier_idx'), angle(inlier_idx'), conditionNum_thres);
+    vhat_bf_inlier(i,:) = model_bf_inlier';
+    time = ones(1,size(vhat_bf_all_inlier,2))*radar_time_second(i);
+    scatter(ax_h(7),time,vhat_bf_all_inlier(1,:),sz,colors(1,:),'filled');
+    scatter(ax_h(8),time,vhat_bf_all_inlier(2,:),sz,colors(3,:),'filled');
     
     % Orthogonal Distance Regression (ODR) on inlier set
     
     
 end
+
+%% Compute RMSE for various estimation schemes
 
 % RMSE for the OLD METHOD
 RMSE_mean = sqrt(mean(vx_hat_mean_err.^2))
@@ -158,9 +194,14 @@ RMSE_bf = getDopplerRMSE( vhat_bf, radar_time_second, ...
 RMSE_MLESAC = getDopplerRMSE( vhat_MLESAC, radar_time_second, ...
     twist_time_second, twist_linear_body)
 
-vhat_old_mean = [-vx_hat_mean, zeros(NScans,1)];
-RMSE_mean2 = getDopplerRMSE( vhat_old_mean, radar_time_second, ...
+RMSE_bf_inlier = getDopplerRMSE( vhat_bf_inlier, radar_time_second, ...
     twist_time_second, twist_linear_body)
+
+% vhat_old_mean = [-vx_hat_mean, zeros(NScans,1)];
+% RMSE_mean2 = getDopplerRMSE( vhat_old_mean, radar_time_second, ...
+%     twist_time_second, twist_linear_body)
+
+%% Plot Data
 
 % forward velocity (v_x) estimate vs. truth - OLD METHOD
 plot(ax_h(2), twist_time_second,-twist_linear_body(:,1),'color',colors(2,:));
@@ -170,22 +211,27 @@ hdl = legend(ax_h(2), '$v_x$ Vicon','mean estimate','max estimate');
 set(hdl,'Interpreter','latex','Location','best');
 
 % add estimate + truth data to plot 3 - brute force method
-% ylim(ax_h(3),[-4 4]);
 plot(ax_h(3),twist_time_second,twist_linear_body(:,1),...
     'color',colors(2,:),'LineWidth',2);
-plot(ax_h(3),radar_time_second,vhat_bf(:,1),'k','LineWidth',2);
-% ylim(ax_h(4),[-4 4]);
+plot(ax_h(3),radar_time_second,vhat_bf(:,1),'k','LineWidth',1);
 plot(ax_h(4),twist_time_second,twist_linear_body(:,2),...
     'color',colors(2,:),'LineWidth',2);
-plot(ax_h(4),radar_time_second,vhat_bf(:,2),'k','LineWidth',2);
+plot(ax_h(4),radar_time_second,vhat_bf(:,2),'k','LineWidth',1);
+ylim(ax_h(3),[-4,4]); ylim(ax_h(4),[-4,4]);
 
 % plot MLESAC estimate
 plot(ax_h(5),twist_time_second,twist_linear_body(:,1),...
     'color',colors(2,:),'LineWidth',2);
-plot(ax_h(5),radar_time_second,vhat_MLESAC(:,1),'k','LineWidth',2);
+plot(ax_h(5),radar_time_second,vhat_MLESAC(:,1),'k','LineWidth',1);
 plot(ax_h(6),twist_time_second,twist_linear_body(:,2),...
     'color',colors(2,:),'LineWidth',2);
-plot(ax_h(6),radar_time_second,vhat_MLESAC(:,2),'k','LineWidth',2);
+plot(ax_h(6),radar_time_second,vhat_MLESAC(:,2),'k','LineWidth',1);
 
-
+% inlier set - brute force method
+plot(ax_h(7),twist_time_second,twist_linear_body(:,1),...
+    'color',colors(2,:),'LineWidth',2);
+plot(ax_h(7),radar_time_second,vhat_bf_inlier(:,1),'k','LineWidth',1);
+plot(ax_h(8),twist_time_second,twist_linear_body(:,2),...
+    'color',colors(2,:),'LineWidth',2);
+plot(ax_h(8),radar_time_second,vhat_bf_inlier(:,2),'k','LineWidth',1);
 

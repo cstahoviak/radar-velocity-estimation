@@ -1,4 +1,4 @@
-function [ DCM ] = Quaternion2DCM( quaternion )
+function [ DCM ] = quaternion2DCM( quaternion )
 %UNTITLED2 Summary of this function goes here
 %   Detailed explanation goes here
 

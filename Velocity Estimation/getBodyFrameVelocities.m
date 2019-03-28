@@ -11,7 +11,7 @@ twist_linear_body = zeros(NScans,3);
 for i=1:NScans
     
     % get Direction Cosine Matrix (DCM)
-    DCM = Quaternion2DCM( orientation(i,:) );
+    DCM = quaternion2DCM( orientation(i,:) );
     
     % transform from inertial frame to body frame
     twist_linear_body(i,:) = (DCM*twist_linear(i,:)')';
