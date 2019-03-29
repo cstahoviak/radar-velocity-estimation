@@ -18,7 +18,7 @@ else
     % ransac requires a minimum of 5 targets to operate on. In the case
     % where there are less than 5 targets, we will use the brute force
     % estimation scheme in place of MLESAC
-    [ model, ~ ] = getBruteForceEstimate_fwd( radar_doppler, ...
+    [ model, ~ ] = getBruteForceEstimate( radar_doppler, ...
         radar_angle, conditionNum_thres);
     inlier_idx = ones(Ntargets,1);
 end

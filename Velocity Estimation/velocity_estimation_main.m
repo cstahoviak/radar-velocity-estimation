@@ -152,7 +152,7 @@ for i=1:NScans
     % get 'brute force' estimate of forward/lateral body-frame vel.
 %     [ model_bf, v_hat_bf_all ] = getBruteForceEstimate_fwd( ...
 %         radar_doppler(i,idx_pre & idx_AIR), radar_angle(i,idx_pre & idx_AIR));
-    [ model_bf, vhat_bf_all ] = getBruteForceEstimate_fwd( ...
+    [ model_bf, vhat_bf_all ] = getBruteForceEstimate( ...
         radar_doppler(i,idx_pre), radar_angle(i,idx_pre), conditionNum_thres);
     vhat_bf(i,:) = model_bf';
     
@@ -170,7 +170,7 @@ for i=1:NScans
     % re-run brute-force solver on inlier_idx
     doppler = radar_doppler(i,idx_pre);
     angle = radar_angle(i,idx_pre);
-    [ model_bf_inlier, vhat_bf_all_inlier ] = getBruteForceEstimate_fwd( ...
+    [ model_bf_inlier, vhat_bf_all_inlier ] = getBruteForceEstimate( ...
         doppler(inlier_idx'), angle(inlier_idx'), conditionNum_thres);
     vhat_bf_inlier(i,:) = model_bf_inlier';
     time = ones(1,size(vhat_bf_all_inlier,2))*radar_time_second(i);

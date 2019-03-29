@@ -26,23 +26,22 @@ if new_data
 %     Ntargets = size(radar_angle,1);
     
     % simulated target angles
-    min_angle = -70;
-    max_angle = 70;
+    min_angle = -70;    % [deg]
+    max_angle = 70;     % [deg]
     radar_angle = (max_angle-min_angle).*rand(Ntargets,1) + min_angle;
 
     % simulated 'true' platform velocity
-    min_vel = 0;
-    max_vel = 2.5;
+    min_vel = 0;        % [m/s]
+    max_vel = 2.5;      % [m/s]
 %     velocity = (max_vel-min_vel).*rand(2,1) + min_vel
 end
 
 % create simulated radar doppler measurements
 radar_doppler =  simulateRadarDoppler2D(velocity, deg2rad(radar_angle));
-% radar_doppler = abs(radar_doppler);
 
 radar_data = [(1:Ntargets)', radar_angle, radar_doppler]
 
-[ v_hat ] = getBruteForceEstimate_fwd( radar_doppler', ...
-    deg2rad(radar_angle), false);
-v_hat = v_hat'
+[ model, vhat_all ] = getBruteForceEstimate( radar_doppler', ...
+    deg2rad(radar_angle)', 100);
+disp(model)
 
