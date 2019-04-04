@@ -36,12 +36,19 @@ if new_data
 %     velocity = (max_vel-min_vel).*rand(2,1) + min_vel
 end
 
+% define AGWN vector
+eps = zeros(Ntargets,1);
+delta = zeros(Ntargets,1);
+
 % create simulated radar doppler measurements
-radar_doppler =  simulateRadarDoppler2D(velocity, deg2rad(radar_angle));
+radar_doppler =  simulateRadarDoppler2D(velocity, deg2rad(radar_angle), ... 
+    eps, delta);
 
 radar_data = [(1:Ntargets)', radar_angle, radar_doppler]
 
 [ model, vhat_all ] = getBruteForceEstimate( radar_doppler', ...
     deg2rad(radar_angle)', 100);
+
+fprintf('Brute-Force Velocity Profile Estimation\n');
 disp(model)
 

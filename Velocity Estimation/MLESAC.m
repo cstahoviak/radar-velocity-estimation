@@ -50,8 +50,13 @@ function [ distances ] = MLESAC_distFcn( model, data )
     radar_angle   = data(:,1);    % [rad]
     radar_doppler = data(:,2);    % [m/s]
     
+    % do NOT corrupt measurements with noise
+    eps = zeros(Ntargets,1);
+    delta = zeros(Ntargets,1);
+    
     % radar doppler generative model
-    doppler_predicted = simulateRadarDoppler2D(model, radar_angle);
+    doppler_predicted = simulateRadarDoppler2D(model, ...
+        radar_angle, eps, delta);
     
     % is this an appropriate distance function??
 %     fprintf('\nDistances:\n')

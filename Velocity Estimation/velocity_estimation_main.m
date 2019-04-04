@@ -23,7 +23,8 @@ format compact
     % momentarily stationary (zero doppler). By throwing away ALL zero
     % doppler points (and not just those that are spurious data points,
     % e.g. constant intensity, near-range sensor interference), we lose the
-    % ability to provide a velocity estimate when the quad is stationary
+    % ability to provide a velocity estimate when the quad is stationary.
+    % This is a problem.
 
 %% Load Data and ROS bag
 
