@@ -10,11 +10,18 @@ function [ model, inlier_idx ] = MLESAC( radar_doppler, radar_angle, ...
 data = [radar_angle', radar_doppler'];
 Ntargets = size(data,1);
 
-if Ntargets >= 5
+[ numAngleBins, ~ ] = getNumAngleBins( radar_angle );
+
+if numAngleBins == 1
+    disp('HERE');
+end
+
+if (Ntargets >= 5) && (numAngleBins > 1)
     % ransac requires a minimum of 5 targets to operate on
-    [ model,inlier_idx ] = ransac(data, @MLESAC_fitFcn, ...
-        @MLESAC_distFcn, sampleSize, maxDistance);
-else
+    [ model,inlier_idx ] = ransac(data, @MLESAC_fitFcn, @MLESAC_distFcn, ...
+        sampleSize, maxDistance, 'ValidateModelFcn', @validateMSS);
+
+else 
     % ransac requires a minimum of 5 targets to operate on. In the case
     % where there are less than 5 targets, we will use the brute force
     % estimation scheme in place of MLESAC
@@ -35,8 +42,8 @@ function [ model ] = MLESAC_fitFcn( data )
     radar_angle   = data(:,1);    % [rad]
     radar_doppler = data(:,2);    % [m/s]
     
-    v_hat = doppler2BodyFrameVelocities( radar_doppler, ...
-    radar_angle, conditionNum_thres);
+    v_hat = doppler2BodyFrameVelocities( radar_doppler', ...
+    radar_angle', conditionNum_thres);
     
     model = v_hat;  % v_hat = [vx_hat; vy_hat]
 end
@@ -63,5 +70,40 @@ function [ distances ] = MLESAC_distFcn( model, data )
     for i=1:Ntargets
         distances(i) = sqrt((doppler_predicted(i) - radar_doppler(i))^2);
     end
+
+end
+
+function [ isValid ]  = validateMSS( model, varargin )
+    % This function returns true if the model is accepted based on criteria
+    % defined in the function. Use this function to reject specific fits.
+    
+%     persistent count;
+%     
+%     if isempty(count)
+%         count = 1;
+%     else
+%         count = count + 1;
+%     end
+%     
+%     [m,n] = size(model);
+%     disp([count, m, n])
+%     disp(model); fprintf('\n')
+
+    if isnan(model(1))
+        isValid = false;
+    else
+        isValid = true;
+    end
+    
+%     if isempty(model)
+%         disp('HERE')
+%         isValid = false;
+%     else
+%         if isnan(model(1))
+%             isValid = false;
+%         else
+%             isValid = true;
+%         end
+%     end
 
 end

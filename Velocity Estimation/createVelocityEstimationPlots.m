@@ -51,8 +51,18 @@ xlabel(axh6_2,'time [s]','Interpreter','latex');
 ylabel(axh6_1,'$v_x$ [m/s]','Interpreter','latex');
 ylabel(axh6_2,'$v_y$ [m/s]','Interpreter','latex');
 
-fig_h = [fh1; fh2; fh3; fh4; fh5; fh6];
-ax_h  = [axh1; axh2; axh3; axh4_1; axh4_2; axh5_1; axh5_2; axh6_1; axh6_2];
+% ODR velocity estimate
+fh7 = figure(7);
+axh7_1 = subplot(2,1,1); hold(axh7_1, 'on'); grid;
+axh7_2 = subplot(2,1,2); hold(axh7_2, 'on'); grid;
+title(axh7_1,'ODR Velocity Estimate - MLESAC Inlier Set','Interpreter','latex');
+xlabel(axh7_2,'time [s]','Interpreter','latex');
+ylabel(axh7_1,'$v_x$ [m/s]','Interpreter','latex');
+ylabel(axh7_2,'$v_y$ [m/s]','Interpreter','latex');
+
+fig_h = [fh1; fh2; fh3; fh4; fh5; fh6; fh7];
+ax_h  = [axh1; axh2; axh3; axh4_1; axh4_2; axh5_1; ...
+         axh5_2; axh6_1; axh6_2; axh7_1; axh7_2];
 
 
 end

@@ -8,11 +8,21 @@ error = zeros(NScans,2);
 
 for i=1:NScans
     
+    % get index of closest Vicon velocity estimate to current time step
+    [~,ix] = min( abs(twist_time_second - radar_time_second(i)) );
+    
     if isnan(vhat(i,:))
-        error(i,:) = zeros(1,2);
+%         error(i,:) = zeros(1,2);
+        error(i,:) = twist_linear_body(ix,1:2);
     else
-        [~,ix] = min( abs(twist_time_second - radar_time_second(i)) );
-        error(i,:) = vhat(i,:) - twist_linear_body(ix,1:2);
+        if norm(twist_linear_body(ix,1:2)) < 5
+            error(i,:) = vhat(i,:) - twist_linear_body(ix,1:2);
+        else
+            % find closest value in twist_linear_body vector less than
+            % threshold
+            
+            error(i,:) = vhat(i,:) - twist_linear_body(ix+1,1:2);
+        end
     end
     
 end

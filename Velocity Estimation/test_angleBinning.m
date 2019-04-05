@@ -118,7 +118,7 @@ end
 
 %% Define Unique Angle Bins
 
-bin_thres = 0.009;
+bin_thres = 0.009;      % [rad]
 
 % initialize
 bins_fwd = [];
@@ -126,6 +126,7 @@ bins_lat = [];
 
 current_bin = angle_bins_fwd(1);
 begin_idx = 1;
+update_plot = false;
 
 for i=1:size(angle_bins_fwd,1)
     if abs(current_bin - angle_bins_fwd(i)) > bin_thres
@@ -141,11 +142,35 @@ for i=1:size(angle_bins_fwd,1)
         
         % set new current bin
         current_bin = angle_bins_fwd(i);
+        
+        update_plot = true;
+        
+    elseif i == size(angle_bins_fwd,1)
+        % update location of last angle to be averaged
+        end_idx = i;
+        
+        % add single averaged value to table
+        angle_bin = mean(angle_bins_fwd(begin_idx:end_idx));
+        bins_fwd = [bins_fwd; angle_bin];
+        
+        update_plot = true;
     end
+    
+    if update_plot
+        % add data to plots
+        plot(ax1,[0, radar_fwd_time_second(end)],[angle_bin, angle_bin], ...
+            'Color',colors(2,:),'LineWidth',2)
+        polarplot(ax3,angle_bin,10,'Color',colors(2,:))
+        
+        update_plot = false;
+    end
+    
+    
 end
 
 current_bin = angle_bins_lat(1);
 begin_idx = 1;
+update_plot = false;
 
 for i=1:size(angle_bins_lat,1)
     if abs(current_bin - angle_bins_lat(i)) > bin_thres
@@ -161,13 +186,35 @@ for i=1:size(angle_bins_lat,1)
         
         % set new current bin
         current_bin = angle_bins_lat(i);
+        
+        update_plot = true;
+        
+    elseif i == size(angle_bins_lat,1)
+        % update location of last angle to be averaged
+        end_idx = i;
+        
+        % add single averaged value to table
+        angle_bin = mean(angle_bins_lat(begin_idx:end_idx));
+        bins_lat = [bins_lat; angle_bin];
+        
+        update_plot = true;
     end
+    
+    if update_plot
+        % add data to plots
+        plot(ax2,[0, radar_lat_time_second(end)],[angle_bin, angle_bin], ...
+            'Color',colors(2,:),'LineWidth',2)
+        polarplot(ax4,angle_bin,10,'Color',colors(2,:))
+        
+        update_plot = false;
+    end
+        
 end
 
+% define radar angular bins
 radar_angle_bins = mean([bins_fwd, bins_lat],2);
-% disp([bins_fwd, bins_lat, radar_angle_bins])
 
-% calcualte sigma_theta by calcualting the angualr bin spacing
+% calcualte sigma_theta by calcualting the angular bin spacing
 diff = zeros(size(radar_angle_bins,1)-1,1);
 for i=1:size(radar_angle_bins,1) - 1
     diff(i) = radar_angle_bins(i+1) - radar_angle_bins(i);
@@ -176,7 +223,16 @@ end
 diff = [0; diff];
 disp([bins_fwd, bins_lat, radar_angle_bins, diff])
 
+% define sigma_theta as average angular bin spacing
 sigma_theta = mean(diff(2:end))
+
+%% Use getNumAngleBins()
+
+[~,bins_fwd2] = getNumAngleBins(angle_bins_fwd')
+[~,bins_lat2] = getNumAngleBins(angle_bins_lat')
+
+disp([bins_fwd, bins_fwd2, bins_fwd - bins_fwd2, ...
+    bins_lat, bins_lat2, bins_lat - bins_lat2]);
 
 
 

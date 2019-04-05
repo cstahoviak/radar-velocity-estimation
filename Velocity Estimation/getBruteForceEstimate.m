@@ -65,7 +65,7 @@ if ( Ntargets > 2 ) && ( ~isempty(v_hat_nonNaN) )
     
     % 2 targets will result in a single solution, and a variance of 0.
     % k-sigma inliers should only be identified for more than 2 targets.
-    k = 1;
+    k = 2;
     if sigma(1) > 0
         idx_inlier_x = (abs(v_hat_nonNaN(1,:)-mu(1)) < k*sigma(1));
     else
