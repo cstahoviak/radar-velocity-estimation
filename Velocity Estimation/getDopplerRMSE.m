@@ -19,12 +19,12 @@ for i=1:NScans
             error(i,:) = vhat(i,:) - twist_linear_body(ix,1:2);
         else
             % find closest value in twist_linear_body vector less than
-            % threshold
+            % threshold= - really what I need to do is smooth the ground
+            % truth velocity data
             
-            error(i,:) = vhat(i,:) - twist_linear_body(ix+1,1:2);
+            error(i,:) = zeros(1,2);
         end
     end
-    
 end
 
 RMSE = sqrt(mean(error.^2,1));

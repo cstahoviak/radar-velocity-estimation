@@ -32,7 +32,7 @@ vx_ymin = -2.5;
 vx_ylim = [vx_ymin vx_ymax];
 
 % define marker size
-sz = 4;
+sz = 5;
 
 fig1 = figure(1);
 ax1 = axes('Parent',fig1);
@@ -56,7 +56,7 @@ ylim([vx_ymin vx_ymax]); xlim([0 max([radar_time_second(end) twist_time_second(e
 % Point target intensity figure
 fig4 = figure(4);
 ax4 = axes('Parent',fig4);
-hold on; grid on;
+hold on;
 h1 = title('Point Target Intensity Value');
 set(h1,'Interpreter','latex');
 xlabel('time [s]','Interpreter','latex');

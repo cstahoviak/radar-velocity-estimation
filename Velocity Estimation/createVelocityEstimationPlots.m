@@ -51,7 +51,7 @@ xlabel(axh6_2,'time [s]','Interpreter','latex');
 ylabel(axh6_1,'$v_x$ [m/s]','Interpreter','latex');
 ylabel(axh6_2,'$v_y$ [m/s]','Interpreter','latex');
 
-% ODR velocity estimate
+% ODR + brute-force plot
 fh7 = figure(7);
 axh7_1 = subplot(2,1,1); hold(axh7_1, 'on'); grid;
 axh7_2 = subplot(2,1,2); hold(axh7_2, 'on'); grid;
@@ -60,9 +60,18 @@ xlabel(axh7_2,'time [s]','Interpreter','latex');
 ylabel(axh7_1,'$v_x$ [m/s]','Interpreter','latex');
 ylabel(axh7_2,'$v_y$ [m/s]','Interpreter','latex');
 
-fig_h = [fh1; fh2; fh3; fh4; fh5; fh6; fh7];
-ax_h  = [axh1; axh2; axh3; axh4_1; axh4_2; axh5_1; ...
-         axh5_2; axh6_1; axh6_2; axh7_1; axh7_2];
+% ODR + brute-force plot
+fh8 = figure(8);
+axh8_1 = subplot(2,1,1); hold(axh8_1, 'on'); grid;
+axh8_2 = subplot(2,1,2); hold(axh8_2, 'on'); grid;
+title(axh8_1,'ODR \& Buute-Force Methods','Interpreter','latex');
+xlabel(axh8_2,'time [s]','Interpreter','latex');
+ylabel(axh8_1,'$v_x$ [m/s]','Interpreter','latex');
+ylabel(axh8_2,'$v_y$ [m/s]','Interpreter','latex');
+
+fig_h = [fh1; fh2; fh3; fh4; fh5; fh6; fh7; fh8];
+ax_h  = [axh1; axh2; axh3; axh4_1; axh4_2; axh5_1; axh5_2;
+         axh6_1; axh6_2; axh7_1; axh7_2; axh8_1; axh8_2];
 
 
 end

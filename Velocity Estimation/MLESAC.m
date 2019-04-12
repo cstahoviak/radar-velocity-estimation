@@ -89,21 +89,14 @@ function [ isValid ]  = validateMSS( model, varargin )
 %     disp([count, m, n])
 %     disp(model); fprintf('\n')
 
-    if isnan(model(1))
-        isValid = false;
+    if isempty(model)
+        error('empty model parameters')
     else
-        isValid = true;
+        if isnan(model(1))
+            isValid = false;
+        else
+            isValid = true;
+        end
     end
-    
-%     if isempty(model)
-%         disp('HERE')
-%         isValid = false;
-%     else
-%         if isnan(model(1))
-%             isValid = false;
-%         else
-%             isValid = true;
-%         end
-%     end
 
 end

@@ -37,12 +37,12 @@ d = ones(Ntargets,1)*(sigma_vr/sigma_theta);
 %% Generate Simulated Radar Measurements
 
 % hard-coded values
-% velocity = [0.25, 0.75]'
+velocity = [1.2, 0.75]'
 
 % simulated 'true' platform velocity
 min_vel = -2.5;        % [m/s]
 max_vel = 2.5;      % [m/s]
-velocity = (max_vel-min_vel).*rand(2,1) + min_vel
+% velocity = (max_vel-min_vel).*rand(2,1) + min_vel
 
 % create noisy simulated radar measurements
 [true_angle, true_doppler, radar_angle, radar_doppler ] = ...
@@ -117,12 +117,30 @@ quiver(0,0,velocity(1),velocity(2),'LineWidth',2); hold on;
 quiver(0,0,model_bruteforce(1),model_bruteforce(2));
 quiver(0,0,model_mlesac(1),model_mlesac(2));
 quiver(0,0,model_odr1(1),model_odr1(2));
-quiver(0,0,model_odr2(1),model_odr2(2));
+% quiver(0,0,model_odr2(1),model_odr2(2));
 hdl = legend('truth','brute-force','MLESAC', ...
-    'ODR - MLESAC seed','ODR - brute-force seed');
+    'ODR');
+% hdl = legend('truth','brute-force','MLESAC', ...
+%     'ODR - MLESAC seed','ODR - brute-force seed');
 set(hdl,'Interpreter','latex','Location','best')
 xlabel('$v_x$ [m/s]','Interpreter','latex')
 ylabel('$v_y$ [m/s]','Interpreter','latex')
 title('Velocity Estimate Comparison','Interpreter','latex')
 % xlim([0 1]); ylim([0 1]);
+
+%% Plot velocity Profile
+
+angles = linspace(-pi/2,pi/2,1000)';
+Ntargets = size(angles,1);
+
+% get true radar doppler measurements
+doppler = simulateRadarDoppler2D(velocity, angles, ...
+    zeros(Ntargets,1), zeros(Ntargets,1));
+
+figure(4)
+plot(angles,doppler)
+xlim([-pi/2, pi/2]);
+xlabel('target angle, $\theta$ [rad]','Interpreter','latex')
+ylabel('radial velocity, $v_r$ [m/s]','Interpreter','latex')
+title('Cosine Velocity Profile','Interpreter','latex')
 
