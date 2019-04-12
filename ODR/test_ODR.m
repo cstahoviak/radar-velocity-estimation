@@ -72,15 +72,15 @@ weights = (1/sigma_vr)*ones(Ntargets,1);
 delta = normrnd(0,sigma_theta,[Ntargets,1]);
 [ model_odr1, beta1 ] = ODR( radar_angle', radar_doppler', d, ...
     model_mlesac, delta, weights );
-fprintf('ODR Velocity Profile Estimation\n');
+fprintf('ODR Velocity Profile Estimation - MLESAC seed\n');
 disp(model_odr1)
 
-% get Orthogonal Distance Regression (ODR) estimate - MLESAC seed
+% get Orthogonal Distance Regression (ODR) estimate - brute-force seed
 weights = (1/sigma_vr)*ones(Ntargets,1);
 delta = normrnd(0,sigma_theta,[Ntargets,1]);
 [ model_odr2, beta2 ] = ODR( radar_angle', radar_doppler', d, ...
-    model_mlesac, delta, weights );
-fprintf('ODR Velocity Profile Estimation\n');
+    model_bruteforce, delta, weights );
+fprintf('ODR Velocity Profile Estimation - brute-force seed\n');
 disp(model_odr2)
 
 RMSE_bruteforce     = sqrt(mean((velocity - model_bruteforce).^2))
@@ -93,9 +93,9 @@ RMSE_odr_bruteforce = sqrt(mean((velocity - model_odr2).^2))
 figure(1)
 plot(beta1(1,:), 'b'); hold on;
 plot(beta1(2,:), 'r');
-plot([0, length(beta1)], [velocity(1), velocity(1)], 'b--')
-plot([0, length(beta1)], [velocity(2), velocity(2)], 'r--')
-xlim([0, length(beta1)]);
+plot([1, length(beta1)], [velocity(1), velocity(1)], 'b--')
+plot([1, length(beta1)], [velocity(2), velocity(2)], 'r--')
+xlim([1, length(beta1)]);
 xlabel('iteration index','Interpreter','latex')
 ylabel('velocity [m/s]','Interpreter','latex')
 title({'Othrogonal Distance Regression (ODR) - MLESAC Seed', ...
@@ -104,9 +104,9 @@ title({'Othrogonal Distance Regression (ODR) - MLESAC Seed', ...
 figure(2)
 plot(beta2(1,:), 'b'); hold on;
 plot(beta2(2,:), 'r');
-plot([0, length(beta2)], [velocity(1), velocity(1)], 'b--')
-plot([0, length(beta2)], [velocity(2), velocity(2)], 'r--')
-xlim([0, length(beta2)]);
+plot([1, length(beta2)], [velocity(1), velocity(1)], 'b--')
+plot([1, length(beta2)], [velocity(2), velocity(2)], 'r--')
+xlim([1, length(beta2)]);
 xlabel('iteration index','Interpreter','latex')
 ylabel('velocity [m/s]','Interpreter','latex')
 title({'Othrogonal Distance Regression (ODR) - Brute-Force Seed', ...
