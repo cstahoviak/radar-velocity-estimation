@@ -1,27 +1,30 @@
-function [ model, v_hat_all ] = getBruteForceEstimate( ...
-    radar_doppler, radar_angle, conditionNum_thres)
+function [ model, v_hat_all ] = getBruteForceEstimate3D( ...
+    radar_doppler, radar_azimuth, radar_elevation, conditionNum_thres)
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
 
 % number of targets in scan
 Ntargets = size(radar_doppler,2);
-iter = (Ntargets-1)*Ntargets/2;
+iter = factorial(Ntargets)/(6*factorial(Ntargets-3))
 
 if Ntargets > 1
     % initialize velocity estimate vector
-    v_hat = zeros(2,iter);
+    v_hat = zeros(3,iter);
 
-    k = 1;
-    for i=1:Ntargets-1
-        for j=(i+1):Ntargets
+    m = 1;
+    for i=1:Ntargets-2
+        for j=(i+1):Ntargets-1
+            for k=(j+1):Ntargets
             
-            doppler = [radar_doppler(i), radar_doppler(j)];
-            angle = [radar_angle(i), radar_angle(j)];
-            
-            v_hat(:,k) = doppler2BodyFrameVelocities( doppler, ...
-                angle, conditionNum_thres);
+                doppler = [radar_doppler(i), radar_doppler(j), radar_doppler(k)];
+                azimuth = [radar_azimuth(i), radar_azimuth(j), radar_azimuth(k)];
+                elevation =  [radar_elevation(i), radar_elevation(j), radar_elevation(k)];
 
-            k = k+1;
+                v_hat(:,m) = doppler2BodyFrameVelocities3D( doppler, ...
+                    azimuth, elevation, conditionNum_thres);
+
+                m = m+1;
+            end
         end 
     end
     
@@ -34,17 +37,17 @@ if Ntargets > 1
         % problem for any two targets in the scan. This is the result of M
         % being close to singular for all pairs of targets, i.e. the
         % targets have identical angular locations.
-        v_hat_all = NaN*ones(2,1);
+        v_hat_all = NaN*ones(3,1);
     end
       
 else
     % cannot solve uniquely-determined problem for a single target
     % (solution requires 2 non-identical targets)
     v_hat_nonNaN = [];
-    v_hat_all = NaN*ones(2,1);
+    v_hat_all = NaN*ones(3,1);
 end
 
-if ( Ntargets > 2 ) && ( ~isempty(v_hat_nonNaN) )
+if ( Ntargets > 3 ) && ( ~isempty(v_hat_nonNaN) )
     % if there are more than 2 targets in the scan (resulting in a minimum
     % of 3 estimates of the velocity vector), AND there exists at least one
     % non-singular solution to the uniquely-determined problem
@@ -70,10 +73,18 @@ if ( Ntargets > 2 ) && ( ~isempty(v_hat_nonNaN) )
         idx_inlier_y = ones(1,size(v_hat_nonNaN,2));
     end
     
+    if sigma(3) > 0
+        idx_inlier_z = (abs(v_hat_nonNaN(3,:)-mu(3)) < k*sigma(3));
+    else
+        idx_inlier_z = ones(1,size(v_hat_nonNaN,2));
+    end
+    
     % remove k-sigma outliers
-    idx_inlier = idx_inlier_x & idx_inlier_y;
+    idx_inlier = idx_inlier_x & idx_inlier_y & idx_inlier_z;
     model = mean(v_hat_nonNaN(:,idx_inlier),2);
     v_hat_all = v_hat(:,idx_inlier);
+    
+% NOTE: Below this point not adapted for the 3D case
     
 elseif ( Ntargets > 1 ) && ( ~isempty(v_hat_nonNaN) )
     % there are 2 targets in the scan, AND their solution to the
