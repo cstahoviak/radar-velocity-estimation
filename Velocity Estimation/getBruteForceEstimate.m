@@ -28,6 +28,7 @@ if Ntargets > 1
     % identify non-NaN solutions to uniquely-determined problem
     idx_nonNaN = ~isnan(v_hat(1,:));
     v_hat_nonNaN = v_hat(:,idx_nonNaN);
+    fprintf('size(v_hat_nonNaN,2) = %d\n', size(v_hat_nonNaN,2))
     
     if isempty(v_hat_nonNaN)
         % there exists no unique solution to the uniquely-determined

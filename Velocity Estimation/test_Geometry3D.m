@@ -17,7 +17,7 @@ type = 'points';
 Ntargets = 50;
 
 % hard-coded values
-velocity = [1.25, 0.75, .5]'
+velocity = [1.25, 0, .5]'
 % radar_angle = [-4, 4, -30, 30, -55, 55]';
 % Ntargets = size(radar_angle,1);
 
@@ -30,26 +30,29 @@ if strcmp(type,'angles')
     % simulated target azimuth angles
     min_azimuth = -70;    % [deg]
     max_azimuth = 70;     % [deg]
-    radar_azimuth = (max_azimuth - min_azimuth).*rand(Ntargets,1) + ...
-        min_azimuth;
+    radar_azimuth = (max_azimuth - min_azimuth).*rand(Ntargets,1) + min_azimuth;
+    radar_azimuth = deg2rad(radar_azimuth);
     
     % simulated target elevation angles
     min_elevation = -70;    % [deg]
     max_elevation = 70;     % [deg]
-    radar_elevation = (max_elevation - min_elevation).*rand(Ntargets,1) + ...
-        min_elevation;
+    radar_elevation = (max_elevation - min_elevation).*rand(Ntargets,1) + min_elevation;
+    radar_elevation = deg2rad(radar_elevation);
 elseif strcmp(type,'points')
-    ptcloud = generatePointcloud3D( Ntargets )
+    ptcloud = generatePointcloud3D( Ntargets );
     
     radar_x = ptcloud(:,1);
     radar_y = ptcloud(:,2);
     radar_z = ptcloud(:,3);
 %     radar_z = zeros(Ntargets,1);
     
+    r = sqrt(radar_x.^2 + radar_y.^2 + radar_z.^2);
     r_xy = sqrt(radar_x.^2 + radar_y.^2);
     
     radar_azimuth = atan(radar_y./radar_x);   % [rad];
     radar_elevation = atan(radar_z./r_xy);   % [rad];
+    radar_elevation2 = asin(radar_z./r);
+    disp([radar_elevation radar_elevation2])
     
 else
     radar_azimuth = zeros(Ntargets,1);
@@ -61,13 +64,13 @@ eps = zeros(Ntargets,1);
 delta = zeros(Ntargets,1);
 
 % create simulated radar doppler measurements
-radar_doppler =  simulateRadarDoppler3D( velocity, deg2rad(radar_azimuth), ...
-    deg2rad(radar_elevation), eps, delta);
+radar_doppler =  simulateRadarDoppler3D( velocity, radar_azimuth, ...
+    radar_elevation, eps, delta);
 
 radar_data = [(1:Ntargets)', radar_azimuth, radar_elevation, radar_doppler]
 
 [ model, vhat_all ] = getBruteForceEstimate3D( radar_doppler', ...
-    deg2rad(radar_azimuth)', deg2rad(radar_elevation)', 100);
+    radar_azimuth', radar_elevation', 100);
 
 fprintf('Brute-Force Velocity Profile Estimation\n');
 disp(model)

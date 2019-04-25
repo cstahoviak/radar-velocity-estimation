@@ -18,6 +18,7 @@ for i=1:size(angle_bins,2)
         end_idx = i-1;
         
         % add single averaged value to table
+        disp([begin_idx, end_idx])
         angle_bin = mean(angle_bins(begin_idx:end_idx));
         bins = [bins; angle_bin];
         

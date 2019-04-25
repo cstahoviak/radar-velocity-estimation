@@ -228,11 +228,22 @@ sigma_theta = mean(diff(2:end))
 
 %% Use getNumAngleBins()
 
+disp('HERE')
+
 [~,bins_fwd2] = getNumAngleBins(angle_bins_fwd')
 [~,bins_lat2] = getNumAngleBins(angle_bins_lat')
 
 disp([bins_fwd, bins_fwd2, bins_fwd - bins_fwd2, ...
     bins_lat, bins_lat2, bins_lat - bins_lat2]);
+
+%% Another test
+
+clc;
+clear;
+
+load('radar_angle_bins.mat')
+
+[~,bins] = getNumAngleBins(radar_angle_bins');
 
 
 

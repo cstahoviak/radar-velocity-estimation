@@ -36,8 +36,8 @@ path     = '/home/carl/Data/subT/Fleming/single_radar_velocity_estimate_2018_11_
 
 path     = '/home/carl/Data/subT/Fleming/multiradar_2019-03-31_velocity_estimation/';
 device   = '1642/';
-% filename = 'rangeRes_0-06_velRes_0-04_velMax_1-28_pkgrp_doppler_flight';
-filename = 'rangeRes_0-06_velRes_0-04_velMax_1-28_pkgrp_doppler_flight_dynamicperson'
+filename = 'rangeRes_0-06_velRes_0-04_velMax_1-28_pkgrp_doppler_flight'
+% filename = 'rangeRes_0-06_velRes_0-04_velMax_1-28_pkgrp_doppler_flight_dynamicperson'
 % filename = 'rangeRes_0-14_velRes_0-04_velMax_2-26_pkgrp_doppler_zigzagmotion';
 % filename = 'rangeRes_0-06_velRes_0-04_velMax_1-28_pkgrp_doppler_straightmotion'
 filetype = '.mat';
@@ -58,6 +58,9 @@ load(mat_file);
 start = 3;
 % finish = 1078;  % flight with only  static targets
 finish = 1070;  % flight with dynamics
+
+start = 1;
+finish = 1103;
 
 radar_range       = radar_fwd_range(start:finish,:);
 radar_intensity   = radar_fwd_intensity(start:finish,:);
