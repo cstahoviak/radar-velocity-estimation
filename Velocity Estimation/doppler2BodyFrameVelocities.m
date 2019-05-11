@@ -20,7 +20,6 @@ if numAngleBins > 1
      
     v_hat = M\[radar_doppler(1); radar_doppler(2)];
 else
-    disp([numAngleBins, radar_angle(1), radar_angle(2)])
     v_hat = NaN*ones(2,1);
 end
 

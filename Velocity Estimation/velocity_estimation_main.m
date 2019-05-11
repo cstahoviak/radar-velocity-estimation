@@ -28,7 +28,7 @@ format compact
 
 %% Load Data and ROS bag
 
-path     = '/home/carl/Data/subT/Fleming/single_radar_velocity_estimate_2018_11_18/';
+% path     = '/home/carl/Data/subT/Fleming/single_radar_velocity_estimate_2018_11_18/';
 % device   = '1642/';
 % filename = 'zigzag_best_velocity_res_pkgrp_doppler';
 % filetype = '.mat';
@@ -119,14 +119,15 @@ maxDistance        = 0.1;   % only roughly tuned at this point
 conditionNum_thres = 100;   % NOTE: also used to the brute-froce estimate
 
 % define ODR parameters
-max_intenisty = max(max(radar_intensity));
+max_intensity = max(max(radar_intensity));
 min_intensity = min(min(radar_intensity));
 % int_range = [max_intenisty; min_intensity];
-int_range = [max_intenisty; 5];
+int_range = [max_intensity; 5];
 sigma_vr = 0.044;     % [m/s]
 load('radar_angle_bins.mat')
 
 norm_thresh = 1.4;
+% norm_thresh = 1e6;
 
 %% Get Vicon Body-Frame Velocities
 
@@ -169,6 +170,10 @@ vhat_MLESAC        = zeros(NScans,2);
 vhat_ODR           = zeros(NScans,2);
 vhat_ODR_weighted  = zeros(NScans,2);
 
+% init covariance matrices
+sigma_odr = NaN*ones(NScans,2);
+sigma_odr_weighted = NaN*ones(NScans,2);
+
 % init estimate error vectors
 vx_hat_mean_err = zeros(NScans,1);
 vx_hat_max_err  = zeros(NScans,1);
@@ -200,7 +205,7 @@ for i=1:NScans
     
     %%% NEW METHOD %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
-    % remove NaNs from radar data (and possibly z-ero-doppler targets)
+    % remove NaNs from radar data (and possibly zero-doppler targets)
     idx_pre = prefilter(radar_doppler(i,:), false);
     
     % apply {angle, intensity, range} 'AIR' filtering
@@ -209,7 +214,7 @@ for i=1:NScans
     [ idx_AIR ] = AIR_filtering( data_AIR, [90, 5, 0.30]);
     
     Ntargets = sum(idx_AIR);    % number of valid targets per scan
-    disp([i, sum(idx_pre), Ntargets]);
+%     disp([i, sum(idx_pre), Ntargets]);
     
     if Ntargets > 0
     
@@ -217,6 +222,9 @@ for i=1:NScans
         doppler   = radar_doppler(i,idx_pre);
         angle     = radar_angle(i,idx_pre);
         intensity = radar_intensity(i,idx_pre);
+        
+        [ Nbins, ~ ] = getNumAngleBins( angle(idx_AIR) );
+%         fprintf('Nbins(%d) = %d\n', i, Nbins)
 
         % get 'brute force' estimate of forward/lateral body-frame vel.
         [ model_bf, vhat_bf_all ] = getBruteForceEstimate( ...
@@ -229,12 +237,18 @@ for i=1:NScans
         time = ones(1,size(vhat_bf_all,2))*radar_time_second(i);
         scatter(ax_h(4),time,-vhat_bf_all(1,:),sz,colors(1,:),'filled');
         scatter(ax_h(5),time,-vhat_bf_all(2,:),sz,colors(3,:),'filled');
+        
+%         return;
 
         % get MLESAC (M-estimator RANSAC) model and inlier set
         [ model_mlesac, inlier_idx ] = MLESAC( doppler(idx_AIR), ...
             angle(idx_AIR), sampleSize, maxDistance, conditionNum_thres );
 %         vhat_MLESAC(i,:) = -model_mlesac';
     %     disp([length(radar_doppler(i,idx_pre)), sum(inlier_idx)])
+    
+        disp([i, sum(idx_pre), Ntargets, sum(inlier_idx)]);
+%         fprintf('Ntargets_valid = %d\n', Ntargets)
+%         fprintf('Ntargets_inlier = %d\n\n', sum(inlier_idx))
     
         if norm(model_mlesac) < norm_thresh
             vhat_MLESAC(i,:) = -model_mlesac';
@@ -276,19 +290,19 @@ for i=1:NScans
             
             if norm(model_mlesac) < norm_thresh
                 % constant weighting scheme
-                [ model_odr, ~ ] = ODR( angle_AIR(inlier_idx'), ...
+                [ model_odr, ~, cov ] = ODR( angle_AIR(inlier_idx'), ...
                     doppler_AIR(inlier_idx'), d, model_mlesac, delta, weights_const );
                 
-%                 % normalized intenisty weighting scheme 2
-                [ model_odr_weighted, ~ ] = ODR( angle_AIR(inlier_idx'), ...
+%               % normalized intenisty weighting scheme 2
+                [ model_odr_weighted, ~, cov_weighted ] = ODR( angle_AIR(inlier_idx'), ...
                     doppler_AIR(inlier_idx'), d, model_mlesac, delta, weights_int );
             else
                 % constant weighting scheme
-                [ model_odr, ~ ] = ODR( angle_AIR(inlier_idx'), ...
+                [ model_odr, ~, cov ] = ODR( angle_AIR(inlier_idx'), ...
                     doppler_AIR(inlier_idx'), d, vhat_bf(i,:)', delta, weights_const );
                 
-%                 % normalized intenisty weighting scheme 2
-                [ model_odr_weighted, ~ ] = ODR( angle_AIR(inlier_idx'), ...
+%               % normalized intenisty weighting scheme 2
+                [ model_odr_weighted, ~, cov_weighted ] = ODR( angle_AIR(inlier_idx'), ...
                     doppler_AIR(inlier_idx'), d, vhat_bf(i,:)', delta, weights_int );
             end
             
@@ -305,6 +319,10 @@ for i=1:NScans
             else
                 vhat_ODR_weighted(i,:) = vhat_ODR_weighted(i-1,:);
             end
+            
+            sigma_odr(i,:) = [sqrt(cov(1,1)), sqrt(cov(2,2))];
+            sigma_odr_weighted(i,:) = [sqrt(cov_weighted(1,1)), sqrt(cov_weighted(2,2))];
+            
         else
             vhat_ODR(i,:)          = NaN*ones(1,2);
             vhat_ODR_weighted(i,:) = NaN*ones(1,2);
@@ -358,6 +376,9 @@ cla(ax_h(11));
 cla(ax_h(12));
 cla(ax_h(13));
 
+cla(ax_h(14));
+cla(ax_h(15));
+
 % forward velocity (v_x) estimate vs. truth - OLD METHOD
 plot(ax_h(3), twist_time_second,twist_linear_body(:,1),'color',colors(2,:));
 plot(ax_h(3), radar_time_second,vx_hat_mean,'color',colors(1,:));
@@ -391,10 +412,10 @@ hdl = legend(ax_h(7),'Vicon system','ODR');
 set(hdl,'Interpreter','latex','Location','northwest')
 
 % inlier set - brute force method
-plot(ax_h(8),twist_time_second,twist_linear_body(:,1),...
+plot(ax_h(8),twist_time_second,twist_linear_body(:,1), ...
     'color',colors(2,:),'LineWidth',2);
 plot(ax_h(8),radar_time_second,vhat_bf_inlier(:,1),'k','LineWidth',1);
-plot(ax_h(9),twist_time_second,twist_linear_body(:,2),...
+plot(ax_h(9),twist_time_second,twist_linear_body(:,2), ...
     'color',colors(2,:),'LineWidth',2);
 plot(ax_h(9),radar_time_second,vhat_bf_inlier(:,2),'k','LineWidth',1);
 ylim(ax_h(8),[-2,2]); ylim(ax_h(9),[-1,1]);
@@ -402,28 +423,28 @@ xlim(ax_h(8), [0, radar_time_second(end)]);
 xlim(ax_h(9), [0, radar_time_second(end)]);
 
 % plot weighted ODR estimate
-plot(ax_h(10),twist_time_second,twist_linear_body(:,1),...
+plot(ax_h(10),twist_time_second,twist_linear_body(:,1), ...
     'color',colors(2,:),'LineWidth',2);
 % plot(ax_h(10),twist_time_second,twist_linear_x,'LineWidth',2);
 plot(ax_h(10),radar_time_second,vhat_ODR_weighted(:,1),'k','LineWidth',1);
-plot(ax_h(11),twist_time_second,twist_linear_body(:,2),...
+plot(ax_h(11),twist_time_second,twist_linear_body(:,2), ...
     'color',colors(2,:),'LineWidth',2);
 plot(ax_h(11),radar_time_second,vhat_ODR_weighted(:,2),'k','LineWidth',1);
 ylim(ax_h(10),[-1,1.5]); ylim(ax_h(11),[-1,1]);
 xlim(ax_h(10), [0, radar_time_second(end)]);
 xlim(ax_h(11), [0, radar_time_second(end)]);
-hdl = legend(ax_h(11),'Vicon system','ODR');
+hdl = legend(ax_h(11),'Vicon system','weighted ODR');
 set(hdl,'Interpreter','latex','Location','northwest')
 
-% plot ODR + Brute-Force estimates
+% plot Weighted ODR + Brute-Force estimates
 plot(ax_h(12),twist_time_second,twist_linear_body(:,1),...
     'color',colors(2,:),'LineWidth',2);
 % plot(ax_h(10),twist_time_second,twist_linear_x,'LineWidth',2);
-plot(ax_h(12),radar_time_second,vhat_ODR(:,1),'k','LineWidth',1);
+plot(ax_h(12),radar_time_second,vhat_ODR_weighted(:,1),'k','LineWidth',1);
 plot(ax_h(12),radar_time_second,vhat_bf(:,1),'Color',colors(1,:),'LineStyle',':');
 plot(ax_h(13),twist_time_second,twist_linear_body(:,2),...
     'color',colors(2,:),'LineWidth',2);
-plot(ax_h(13),radar_time_second,vhat_ODR(:,2),'k','LineWidth',1);
+plot(ax_h(13),radar_time_second,vhat_ODR_weighted(:,2),'k','LineWidth',1);
 plot(ax_h(13),radar_time_second,vhat_bf(:,2),'Color',colors(1,:),'LineStyle',':');
 ylim(ax_h(12),[-1,1.5]); ylim(ax_h(13),[-1,1]);
 xlim(ax_h(12), [0, radar_time_second(end)]);
@@ -431,26 +452,53 @@ xlim(ax_h(13), [0, radar_time_second(end)]);
 % hdl = legend(ax_h(13),'Vicon system','ODR','brute-force');
 % set(hdl,'Interpreter','latex','Location','northwest')
 
-% add vertical line markers to above plot
+% add vertical line markers to above plot - indicates dynamics in scene
 loc = [12.3, 18.2, 55.4, 60.2, 81.8, 87.1];
 for i=1:length(loc)
     plot(ax_h(12),[loc(i), loc(i)], [-1, 2],'r--')
     plot(ax_h(13),[loc(i), loc(i)], [-1, 2],'r--')
 end
-hdl = legend(ax_h(13),'Vicon system','ODR','brute-force');
+hdl = legend(ax_h(13),'Vicon system','weighted ODR','brute-force');
 set(hdl,'Interpreter','latex','Location','northwest')
 
-figure(10)
+K = 10;
+% plot weighted ODR + covariance bounds
+plot(ax_h(14),radar_time_second,vhat_ODR_weighted(:,1),'k','LineWidth',1);
+plot(ax_h(14),radar_time_second,vhat_ODR_weighted(:,1) + ...
+    K*sigma_odr_weighted(:,1),'r--');
+plot(ax_h(14),radar_time_second,vhat_ODR_weighted(:,1) - ...
+    K*sigma_odr_weighted(:,1),'r--');
+plot(ax_h(15),radar_time_second,vhat_ODR_weighted(:,2),'k','LineWidth',1);
+plot(ax_h(15),radar_time_second,vhat_ODR_weighted(:,2) + ...
+    K*sigma_odr_weighted(:,1),'r--');
+plot(ax_h(15),radar_time_second,vhat_ODR_weighted(:,2) - ...
+    K*sigma_odr_weighted(:,1),'r--');
+ylim(ax_h(14),[-1,1.5]); ylim(ax_h(15),[-1,1]);
+xlim(ax_h(14), [0, radar_time_second(end)]);
+xlim(ax_h(15), [0, radar_time_second(end)]);
+hdl = legend(ax_h(14),'weighted ODR','2$\sigma$ envelope');
+set(hdl,'Interpreter','latex','Location','northwest')
+
+figure(20)
 plot(radar_time_second,vecnorm(vhat_MLESAC')); hold on;
 % plot(radar_time_second,vecnorm(vhat_bf'), '--');
 
-figure(11)
+figure(21)
 plot(radar_time_second,vecnorm(vhat_ODR')); hold on;
 
-figure(12)
+figure(22)
 plot(radar_time_second,std_dev_bf(:,1)); hold on;
 plot(radar_time_second,std_dev_bf(:,2));
 % plot(radar_time_second,vecnorm(vhat_bf'), '--');
 
-figure(20)
+figure(23)
 plot(radar_time_second,vhat_ODR_weighted(:,1),'k','LineWidth',1);
+
+figure(24)
+plot(radar_time_second,sigma_odr_weighted(:,1)); hold on
+plot(radar_time_second,sigma_odr_weighted(:,2))
+xlabel('time [s]','Interpreter','latex');
+ylabel('standard deviation, $\sigma$ [m/s]','Interpreter','latex')
+hdl = legend('$\sigma_{v_x}$','$\sigma_{v_y}$');
+set(hdl,'Interpreter','latex','Location','northwest')
+xlim([0, radar_time_second(end)]);

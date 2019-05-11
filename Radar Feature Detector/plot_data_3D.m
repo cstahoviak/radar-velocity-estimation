@@ -51,6 +51,16 @@ hold on;
 
 intensity_range = [6 35];
 
+%% Extract Radar Bag
+
+radar_bag    = select(bag,'Topic',radar_topic);
+radar_struct = readMessages(radar_bag,'DataFormat','struct');
+
+% extract timestamp information (Christopher's method)
+time_stamp_table = radar_bag.MessageList(:,1);
+radar_time_stamp  = time_stamp_table{:,1};
+radar_time_second = radar_time_stamp - radar_time_stamp(1);
+
 %% Extract Pose Data
 
 pose_bag    = select(bag,'Topic',vrpn_pose_topic);
@@ -124,8 +134,15 @@ for i=1:size(radar_messages,1)
 %         scatter3(ax1,radar_x_tf,radar_y_tf,radar_z_tf,10, ... 
 %             'MarkerFaceColor','b', 'MarkerEdgeColor','b', ...
 %             'MarkerFaceAlpha',0.5, 'MarkerEdgeAlpha',0);
+
+        % get index of closest Vicon velocity estimate to current time step
+        [~,ix] = min( abs(pose_time_second - radar_time_second(i)) );
         
-        scatter3(ax1,radar_x,radar_y,radar_z,10, ... 
+        x = pose_position_x(ix,1) + radar_x;
+        y = pose_position_y(ix,1) + radar_y;
+        z = pose_position_z(ix,1) + radar_z;
+        
+        scatter3(ax1, x, y, z, 10, ... 
             'MarkerFaceColor','b', 'MarkerEdgeColor','b', ...
             'MarkerFaceAlpha',0.5, 'MarkerEdgeAlpha',0);
     else

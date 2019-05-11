@@ -9,6 +9,7 @@ radar_angle = zeros(Ntargets,1);
 min_angle = deg2rad(-75);    % [deg]
 max_angle = deg2rad(75);     % [deg]
 true_angle = (max_angle-min_angle).*rand(Ntargets,1) + min_angle;
+% true_angle = linspace(min_angle, max_angle, Ntargets)';
 
 % bin angular data
 for i=1:Ntargets
@@ -18,6 +19,7 @@ end
 
 % define AGWN vector for doppler velocity measurements
 eps = normrnd(0,sigma_vr,[Ntargets,1]);
+% eps = ones(Ntargets,1)*sigma_vr;
 
 % get true radar doppler measurements
 true_doppler = simulateRadarDoppler2D(model, true_angle, ...

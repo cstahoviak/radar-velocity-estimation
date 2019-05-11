@@ -67,9 +67,8 @@ function [ distances ] = MLESAC_distFcn( model, data )
     
     % is this an appropriate distance function??
 %     fprintf('\nDistances:\n')
-    for i=1:Ntargets
-        distances(i) = sqrt((doppler_predicted(i) - radar_doppler(i))^2);
-    end
+    distances = sqrt( (doppler_predicted - radar_doppler).^2 );
+    
 
 end
 

@@ -1,4 +1,4 @@
-function [ model, beta ] = ODR( radar_angle, radar_doppler, ...
+function [ model, beta, cov_beta ] = ODR( radar_angle, radar_doppler, ...
     d, beta0, delta0, weights )
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
@@ -29,8 +29,12 @@ converge_thres = 0.0002;
 while (abs(s(1)) > converge_thres) ||  (abs(s(2)) > converge_thres)
     
     % get Jacobian matrices
-    [ G, V, D ] = ODR_getJacobian( radar_angle, delta, ...
+    [ G, V, D ] = odr_getJacobian( radar_angle, delta, ...
         beta(:,k), weights, d );
+    
+%     disp('G ='); disp(G)
+%     disp('V ='); disp(V)
+%     disp('D ='); disp(D)
     
     % defined to simplify the notation in objectiveFunc
     P = V'*V + D^2 + alpha*T^2;
@@ -64,6 +68,7 @@ while (abs(s(1)) > converge_thres) ||  (abs(s(2)) > converge_thres)
 end
 
 model = beta(:,end);
+cov_beta = odr_getCovariance( G, V, D, eps, delta, weights, d );
 
 end
 
