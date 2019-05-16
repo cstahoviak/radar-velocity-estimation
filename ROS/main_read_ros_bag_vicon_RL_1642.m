@@ -16,19 +16,20 @@
 % ===========================================
 
 % Input file information
-input_directory   = '/home/carl/Data/subT/Fleming/multiradar_2019-03-31_velocity_estimation/';
-filename_root     = 'rangeRes_0-06_velRes_0-04_velMax_1-28_pkgrp_doppler_flight';
+input_directory   = '/home/carl/Data/subT/radar-rig/vicon_2019-05-08/';
+filename_root     = 'cfar-1280_10Hz_run1';
 input_suffix      = '.bag';
 
 % Output file information
-output_directory  = '/home/carl/Data/subT/Fleming/multiradar_2019-03-31_velocity_estimation/mat_files/';
+output_directory  = '/home/carl/Data/subT/radar-rig/vicon_2019-05-08/mat_files/';
 output_suffix     = '.mat';
 
 % topic information
-radar_fwd_topic   = '/radar_fwd/mmWaveDataHdl/RScan';
-radar_lat_topic   = '/radar_lat/mmWaveDataHdl/RScan';
-vrpn_twist_topic  = '/vrpn_client_node/RadarQuad/twist';
-vrpn_pose_topic   = '/vrpn_client_node/RadarQuad/pose';
+radar_topic       = '/mmWaveDataHdl/RScan';
+% radar_fwd_topic   = '/radar_fwd/mmWaveDataHdl/RScan';
+% radar_lat_topic   = '/radar_lat/mmWaveDataHdl/RScan';
+% vrpn_twist_topic  = '/vrpn_client_node/RadarQuad/twist';
+vrpn_pose_topic   = '/vrpn_node/radar_jackal/pose';
 odom_topic        = '/odom';
 tf_topic          = '/tf';
 
@@ -97,10 +98,10 @@ bag.MessageList;
 %     1.5416e+09    /scan                   sensor_msgs/LaserScan         23225    
 %     ...
 
-%% Get the radar_fwd messages
+%% Get the radar messages
 % =======================
 
-radar_fwd_bag   = select(bag, 'Topic', radar_fwd_topic);
+radar_bag   = select(bag, 'Topic', radar_topic);
 % The properties are:
 %            FilePath: 'C:\Projects_2018_10\DARPA\Fleming_Vicon_2018_1107\bag_files\1642_static_RL_cfar_5120.bag'
 %           StartTime: 1.5416e+09
@@ -112,13 +113,13 @@ radar_fwd_bag   = select(bag, 'Topic', radar_fwd_topic);
 
 %% Get the time stamp for all radar messages
 
-time_stamp_table  = radar_fwd_bag.MessageList(:,1);
-radar_fwd_time_stamp  = time_stamp_table{:,1};
-radar_fwd_time_second = radar_fwd_time_stamp - radar_fwd_time_stamp(1);
+time_stamp_table  = radar_bag.MessageList(:,1);
+radar_time_stamp  = time_stamp_table{:,1};
+radar_time_second = radar_time_stamp - radar_time_stamp(1);
 
 %% Read all messages
 
-radar_fwd_messages = readMessages(radar_fwd_bag);
+radar_messages = readMessages(radar_bag);
 %   98�1 cell array
 % 
 %     {1�1 PointCloud2}
@@ -152,197 +153,286 @@ radar_fwd_messages = readMessages(radar_fwd_bag);
 %% Get all radar measurements, for all variables, and for all messages
 
 % pre-define the output variables
-[m,~]    = size(radar_fwd_messages);
+[m,~]    = size(radar_messages);
 
 max_num_targets   = 100;
 
-radar_fwd_x           = ones(m,max_num_targets) .* NaN;
-radar_fwd_y           = ones(m,max_num_targets) .* NaN;
-radar_fwd_z           = ones(m,max_num_targets) .* NaN;
-radar_fwd_intensity   = ones(m,max_num_targets) .* NaN;
-radar_fwd_range       = ones(m,max_num_targets) .* NaN;
-radar_fwd_doppler     = ones(m,max_num_targets) .* NaN;
+radar_x           = ones(m,max_num_targets) .* NaN;
+radar_y           = ones(m,max_num_targets) .* NaN;
+radar_z           = ones(m,max_num_targets) .* NaN;
+radar_intensity   = ones(m,max_num_targets) .* NaN;
+radar_range       = ones(m,max_num_targets) .* NaN;
+radar_doppler     = ones(m,max_num_targets) .* NaN;
 
 % process each meassage
 
 for r = 1:m
    
-   temp_x           = readField(radar_fwd_messages{r}, 'x');
-   temp_y           = readField(radar_fwd_messages{r}, 'y');
-   temp_z           = readField(radar_fwd_messages{r}, 'z');
-   temp_intensity   = readField(radar_fwd_messages{r}, 'intensity');
-   temp_range       = readField(radar_fwd_messages{r}, 'range');
-   temp_doppler     = readField(radar_fwd_messages{r}, 'doppler');
+   temp_x           = readField(radar_messages{r}, 'x');
+   temp_y           = readField(radar_messages{r}, 'y');
+   temp_z           = readField(radar_messages{r}, 'z');
+   temp_intensity   = readField(radar_messages{r}, 'intensity');
+   temp_range       = readField(radar_messages{r}, 'range');
+   temp_doppler     = readField(radar_messages{r}, 'doppler');
    
    % put these values into the master matrices
    n = length(temp_x);
 
-   radar_fwd_x(r,1:n)          = temp_x;
-   radar_fwd_y(r,1:n)          = temp_y;
-   radar_fwd_z(r,1:n)          = temp_z;
-   radar_fwd_intensity(r,1:n)  = temp_intensity;
-   radar_fwd_range(r,1:n)      = temp_range;
-   radar_fwd_doppler(r,1:n)    = temp_doppler;
+   radar_x(r,1:n)          = temp_x;
+   radar_y(r,1:n)          = temp_y;
+   radar_z(r,1:n)          = temp_z;
+   radar_intensity(r,1:n)  = temp_intensity;
+   radar_range(r,1:n)      = temp_range;
+   radar_doppler(r,1:n)    = temp_doppler;
    
 end % end for r loop
 
-%% Get the radar_lat messages
-% =======================
-
-radar_lat_bag   = select(bag, 'Topic', radar_lat_topic);
-% The properties are:
-%            FilePath: 'C:\Projects_2018_10\DARPA\Fleming_Vicon_2018_1107\bag_files\1642_static_RL_cfar_5120.bag'
-%           StartTime: 1.5416e+09
-%             EndTime: 1.5416e+09
-%         NumMessages: 98
-%     AvailableTopics: [1x3 table]
-%     AvailableFrames: {6x1 cell}
-%         MessageList: [98x4 table]
-
-%% Get the time stamp for all radar messages
-
-time_stamp_table  = radar_lat_bag.MessageList(:,1);
-radar_lat_time_stamp  = time_stamp_table{:,1};
-radar_lat_time_second = radar_lat_time_stamp - radar_lat_time_stamp(1);
-
-%% Read all messages
-
-radar_lat_messages = readMessages(radar_lat_bag);
-%   98�1 cell array
+% %% Get the radar_fwd messages
+% % =======================
 % 
-%     {1�1 PointCloud2}
-%     {1�1 PointCloud2}
-%     {1�1 PointCloud2}
-%     ...
-
-%% Display the contents of one radar message cell
-
-%radar_messages{1}
-%   ROS PointCloud2 message with properties:
+% radar_fwd_bag   = select(bag, 'Topic', radar_fwd_topic);
+% % The properties are:
+% %            FilePath: 'C:\Projects_2018_10\DARPA\Fleming_Vicon_2018_1107\bag_files\1642_static_RL_cfar_5120.bag'
+% %           StartTime: 1.5416e+09
+% %             EndTime: 1.5416e+09
+% %         NumMessages: 98
+% %     AvailableTopics: [1x3 table]
+% %     AvailableFrames: {6x1 cell}
+% %         MessageList: [98x4 table]
 % 
-%     PreserveStructureOnRead: 0
-%                 MessageType: 'sensor_msgs/PointCloud2'
-%                      Header: [1x1 Header]
-%                      Height: 1
-%                       Width: 75
-%                 IsBigendian: 0
-%                   PointStep: 32
-%                     RowStep: 2400
-%                     IsDense: 1
-%                      Fields: [6x1 PointField]
-%                        Data: [2400x1 uint8]
-
-%% Display the radar Field Names
-
-%radar_messages{1}.Fields.Name
-
-% ans =   'x' 'y' 'z' 'intensity' 'range' 'doppler'
-
-%% Get all radar measurements, for all variables, and for all messages
-
-% pre-define the output variables
-[m,~]    = size(radar_lat_messages);
-
-max_num_targets   = 100;
-
-radar_lat_x           = ones(m,max_num_targets) .* NaN;
-radar_lat_y           = ones(m,max_num_targets) .* NaN;
-radar_lat_z           = ones(m,max_num_targets) .* NaN;
-radar_lat_intensity   = ones(m,max_num_targets) .* NaN;
-radar_lat_range       = ones(m,max_num_targets) .* NaN;
-radar_lat_doppler     = ones(m,max_num_targets) .* NaN;
-
-% process each meassage
-
-for r = 1:m
-   
-   temp_x           = readField(radar_lat_messages{r}, 'x');
-   temp_y           = readField(radar_lat_messages{r}, 'y');
-   temp_z           = readField(radar_lat_messages{r}, 'z');
-   temp_intensity   = readField(radar_lat_messages{r}, 'intensity');
-   temp_range       = readField(radar_lat_messages{r}, 'range');
-   temp_doppler     = readField(radar_lat_messages{r}, 'doppler');
-   
-   % put these values into the master matrices
-   n = length(temp_x);
-
-   radar_lat_x(r,1:n)          = temp_x;
-   radar_lat_y(r,1:n)          = temp_y;
-   radar_lat_z(r,1:n)          = temp_z;
-   radar_lat_intensity(r,1:n)  = temp_intensity;
-   radar_lat_range(r,1:n)      = temp_range;
-   radar_lat_doppler(r,1:n)    = temp_doppler;
-   
-end % end for r loop
-
-%% Get the Vicon Twist messages
-% =======================
-
-twist_bag   = select(bag, 'Topic', vrpn_twist_topic);
-
-% The properties are:
-
-
-%% Get the time stamp for all Twist messages
-
-time_stamp_table  = twist_bag.MessageList(:,1);
-twist_time_stamp  = time_stamp_table{:,1};
-twist_time_second = twist_time_stamp - twist_time_stamp(1);
-
-%% Read all Twist messages
-
-twist_messages = readMessages(twist_bag);
-
-
-%% Display the contents of one twist message cell
-
-% twist_messages{1}
-%   ROS TwistStamped message with properties:
+% %% Get the time stamp for all radar messages
 % 
-%     MessageType: 'geometry_msgs/TwistStamped'
-%          Header: [1×1 Header]
-%           Twist: [1×1 Twist]
-
-% twist_messages{1}.Twist
-%   ROS Twist message with properties:
+% time_stamp_table  = radar_fwd_bag.MessageList(:,1);
+% radar_fwd_time_stamp  = time_stamp_table{:,1};
+% radar_fwd_time_second = radar_fwd_time_stamp - radar_fwd_time_stamp(1);
 % 
-%     MessageType: 'geometry_msgs/Twist'
-%          Linear: [1×1 Vector3]
-%         Angular: [1×1 Vector3]
-
-% twist_messages{1}.Twist.Linear
-%   ROS Vector3 message with properties:
+% %% Read all messages
 % 
-%     MessageType: 'geometry_msgs/Vector3'
-%               X: -0.0172
-%               Y: -0.0118
-%               Z: 0.0264
+% radar_fwd_messages = readMessages(radar_fwd_bag);
+% %   98�1 cell array
+% % 
+% %     {1�1 PointCloud2}
+% %     {1�1 PointCloud2}
+% %     {1�1 PointCloud2}
+% %     ...
+% 
+% %% Display the contents of one radar message cell
+% 
+% %radar_messages{1}
+% %   ROS PointCloud2 message with properties:
+% % 
+% %     PreserveStructureOnRead: 0
+% %                 MessageType: 'sensor_msgs/PointCloud2'
+% %                      Header: [1x1 Header]
+% %                      Height: 1
+% %                       Width: 75
+% %                 IsBigendian: 0
+% %                   PointStep: 32
+% %                     RowStep: 2400
+% %                     IsDense: 1
+% %                      Fields: [6x1 PointField]
+% %                        Data: [2400x1 uint8]
+% 
+% %% Display the radar Field Names
+% 
+% %radar_messages{1}.Fields.Name
+% 
+% % ans =   'x' 'y' 'z' 'intensity' 'range' 'doppler'
+% 
+% %% Get all radar measurements, for all variables, and for all messages
+% 
+% % pre-define the output variables
+% [m,~]    = size(radar_fwd_messages);
+% 
+% max_num_targets   = 100;
+% 
+% radar_fwd_x           = ones(m,max_num_targets) .* NaN;
+% radar_fwd_y           = ones(m,max_num_targets) .* NaN;
+% radar_fwd_z           = ones(m,max_num_targets) .* NaN;
+% radar_fwd_intensity   = ones(m,max_num_targets) .* NaN;
+% radar_fwd_range       = ones(m,max_num_targets) .* NaN;
+% radar_fwd_doppler     = ones(m,max_num_targets) .* NaN;
+% 
+% % process each meassage
+% 
+% for r = 1:m
+%    
+%    temp_x           = readField(radar_fwd_messages{r}, 'x');
+%    temp_y           = readField(radar_fwd_messages{r}, 'y');
+%    temp_z           = readField(radar_fwd_messages{r}, 'z');
+%    temp_intensity   = readField(radar_fwd_messages{r}, 'intensity');
+%    temp_range       = readField(radar_fwd_messages{r}, 'range');
+%    temp_doppler     = readField(radar_fwd_messages{r}, 'doppler');
+%    
+%    % put these values into the master matrices
+%    n = length(temp_x);
+% 
+%    radar_fwd_x(r,1:n)          = temp_x;
+%    radar_fwd_y(r,1:n)          = temp_y;
+%    radar_fwd_z(r,1:n)          = temp_z;
+%    radar_fwd_intensity(r,1:n)  = temp_intensity;
+%    radar_fwd_range(r,1:n)      = temp_range;
+%    radar_fwd_doppler(r,1:n)    = temp_doppler;
+%    
+% end % end for r loop
+% 
+% %% Get the radar_lat messages
+% % =======================
+% 
+% radar_lat_bag   = select(bag, 'Topic', radar_lat_topic);
+% % The properties are:
+% %            FilePath: 'C:\Projects_2018_10\DARPA\Fleming_Vicon_2018_1107\bag_files\1642_static_RL_cfar_5120.bag'
+% %           StartTime: 1.5416e+09
+% %             EndTime: 1.5416e+09
+% %         NumMessages: 98
+% %     AvailableTopics: [1x3 table]
+% %     AvailableFrames: {6x1 cell}
+% %         MessageList: [98x4 table]
+% 
+% %% Get the time stamp for all radar messages
+% 
+% time_stamp_table  = radar_lat_bag.MessageList(:,1);
+% radar_lat_time_stamp  = time_stamp_table{:,1};
+% radar_lat_time_second = radar_lat_time_stamp - radar_lat_time_stamp(1);
+% 
+% %% Read all messages
+% 
+% radar_lat_messages = readMessages(radar_lat_bag);
+% %   98�1 cell array
+% % 
+% %     {1�1 PointCloud2}
+% %     {1�1 PointCloud2}
+% %     {1�1 PointCloud2}
+% %     ...
+% 
+% %% Display the contents of one radar message cell
+% 
+% %radar_messages{1}
+% %   ROS PointCloud2 message with properties:
+% % 
+% %     PreserveStructureOnRead: 0
+% %                 MessageType: 'sensor_msgs/PointCloud2'
+% %                      Header: [1x1 Header]
+% %                      Height: 1
+% %                       Width: 75
+% %                 IsBigendian: 0
+% %                   PointStep: 32
+% %                     RowStep: 2400
+% %                     IsDense: 1
+% %                      Fields: [6x1 PointField]
+% %                        Data: [2400x1 uint8]
+% 
+% %% Display the radar Field Names
+% 
+% %radar_messages{1}.Fields.Name
+% 
+% % ans =   'x' 'y' 'z' 'intensity' 'range' 'doppler'
+% 
+% %% Get all radar measurements, for all variables, and for all messages
+% 
+% % pre-define the output variables
+% [m,~]    = size(radar_lat_messages);
+% 
+% max_num_targets   = 100;
+% 
+% radar_lat_x           = ones(m,max_num_targets) .* NaN;
+% radar_lat_y           = ones(m,max_num_targets) .* NaN;
+% radar_lat_z           = ones(m,max_num_targets) .* NaN;
+% radar_lat_intensity   = ones(m,max_num_targets) .* NaN;
+% radar_lat_range       = ones(m,max_num_targets) .* NaN;
+% radar_lat_doppler     = ones(m,max_num_targets) .* NaN;
+% 
+% % process each meassage
+% 
+% for r = 1:m
+%    
+%    temp_x           = readField(radar_lat_messages{r}, 'x');
+%    temp_y           = readField(radar_lat_messages{r}, 'y');
+%    temp_z           = readField(radar_lat_messages{r}, 'z');
+%    temp_intensity   = readField(radar_lat_messages{r}, 'intensity');
+%    temp_range       = readField(radar_lat_messages{r}, 'range');
+%    temp_doppler     = readField(radar_lat_messages{r}, 'doppler');
+%    
+%    % put these values into the master matrices
+%    n = length(temp_x);
+% 
+%    radar_lat_x(r,1:n)          = temp_x;
+%    radar_lat_y(r,1:n)          = temp_y;
+%    radar_lat_z(r,1:n)          = temp_z;
+%    radar_lat_intensity(r,1:n)  = temp_intensity;
+%    radar_lat_range(r,1:n)      = temp_range;
+%    radar_lat_doppler(r,1:n)    = temp_doppler;
+%    
+% end % end for r loop
 
-
-%% Get all Twist measurements, for all variables, and for all messages
-
-% pre-define the output variables
-[m,~]    = size(twist_messages);
-
-twist_linear_x           = ones(m,1) .* NaN;
-twist_linear_y           = ones(m,1) .* NaN;
-twist_linear_z           = ones(m,1) .* NaN;
-twist_angular_x          = ones(m,1) .* NaN;
-twist_angular_y          = ones(m,1) .* NaN;
-twist_angular_z          = ones(m,1) .* NaN;
-
-% process each meassage
-for r = 1:m
-    
-   twist_linear_x(r) = twist_messages{r}.Twist.Linear.X;
-   twist_linear_y(r) = twist_messages{r}.Twist.Linear.Y;
-   twist_linear_z(r) = twist_messages{r}.Twist.Linear.Z;
-   
-   twist_angular_x(r) = twist_messages{r}.Twist.Angular.X;
-   twist_angular_y(r) = twist_messages{r}.Twist.Angular.Y;
-   twist_angular_z(r) = twist_messages{r}.Twist.Angular.Z;
-   
-end % end for r loop
+% %% Get the Vicon Twist messages
+% % =======================
+% 
+% twist_bag   = select(bag, 'Topic', vrpn_twist_topic);
+% 
+% % The properties are:
+% 
+% 
+% %% Get the time stamp for all Twist messages
+% 
+% time_stamp_table  = twist_bag.MessageList(:,1);
+% twist_time_stamp  = time_stamp_table{:,1};
+% twist_time_second = twist_time_stamp - twist_time_stamp(1);
+% 
+% %% Read all Twist messages
+% 
+% twist_messages = readMessages(twist_bag);
+% 
+% 
+% %% Display the contents of one twist message cell
+% 
+% % twist_messages{1}
+% %   ROS TwistStamped message with properties:
+% % 
+% %     MessageType: 'geometry_msgs/TwistStamped'
+% %          Header: [1×1 Header]
+% %           Twist: [1×1 Twist]
+% 
+% % twist_messages{1}.Twist
+% %   ROS Twist message with properties:
+% % 
+% %     MessageType: 'geometry_msgs/Twist'
+% %          Linear: [1×1 Vector3]
+% %         Angular: [1×1 Vector3]
+% 
+% % twist_messages{1}.Twist.Linear
+% %   ROS Vector3 message with properties:
+% % 
+% %     MessageType: 'geometry_msgs/Vector3'
+% %               X: -0.0172
+% %               Y: -0.0118
+% %               Z: 0.0264
+% 
+% 
+% %% Get all Twist measurements, for all variables, and for all messages
+% 
+% % pre-define the output variables
+% [m,~]    = size(twist_messages);
+% 
+% twist_linear_x           = ones(m,1) .* NaN;
+% twist_linear_y           = ones(m,1) .* NaN;
+% twist_linear_z           = ones(m,1) .* NaN;
+% twist_angular_x          = ones(m,1) .* NaN;
+% twist_angular_y          = ones(m,1) .* NaN;
+% twist_angular_z          = ones(m,1) .* NaN;
+% 
+% % process each meassage
+% for r = 1:m
+%     
+%    twist_linear_x(r) = twist_messages{r}.Twist.Linear.X;
+%    twist_linear_y(r) = twist_messages{r}.Twist.Linear.Y;
+%    twist_linear_z(r) = twist_messages{r}.Twist.Linear.Z;
+%    
+%    twist_angular_x(r) = twist_messages{r}.Twist.Angular.X;
+%    twist_angular_y(r) = twist_messages{r}.Twist.Angular.Y;
+%    twist_angular_z(r) = twist_messages{r}.Twist.Angular.Z;
+%    
+% end % end for r loop
 
 %% Get the Vicon Pose messages
 % =======================
@@ -428,14 +518,21 @@ end % end for r loop
 
 %% Save Radar messages to a mat-file
 
-save(output_filename,'radar_fwd_time_stamp','radar_fwd_time_second', ...
-  'radar_fwd_x','radar_fwd_y','radar_fwd_z','radar_fwd_range','radar_fwd_intensity','radar_fwd_doppler', ...
-  'radar_lat_time_stamp','radar_lat_time_second', ...
-  'radar_lat_x','radar_lat_y','radar_lat_z','radar_lat_range','radar_lat_intensity','radar_lat_doppler', ...
-  'twist_time_stamp','twist_time_second', ...
-  'twist_linear_x','twist_linear_y','twist_linear_z','twist_angular_x','twist_angular_y','twist_angular_z', ...
-  'pose_time_stamp','pose_time_second', ...
-  'pose_position_x', 'pose_position_y', 'pose_position_z', 'pose_orientation_x', 'pose_orientation_y', 'pose_orientation_z', 'pose_orientation_w')
+% save(output_filename,'radar_fwd_time_stamp','radar_fwd_time_second', ...
+%   'radar_fwd_x','radar_fwd_y','radar_fwd_z','radar_fwd_range','radar_fwd_intensity','radar_fwd_doppler', ...
+%   'radar_lat_time_stamp','radar_lat_time_second', ...
+%   'radar_lat_x','radar_lat_y','radar_lat_z','radar_lat_range','radar_lat_intensity','radar_lat_doppler', ...
+%   'twist_time_stamp','twist_time_second', ...
+%   'twist_linear_x','twist_linear_y','twist_linear_z','twist_angular_x','twist_angular_y','twist_angular_z', ...
+%   'pose_time_stamp','pose_time_second', ...
+%   'pose_position_x', 'pose_position_y', 'pose_position_z', 'pose_orientation_x', 'pose_orientation_y', 'pose_orientation_z', 'pose_orientation_w');
+
+save(output_filename, ...
+     'radar_time_stamp','radar_time_second','radar_x','radar_y','radar_z', ...
+     'radar_range','radar_intensity','radar_doppler', ...
+     'pose_time_stamp','pose_time_second', ...
+     'pose_position_x', 'pose_position_y', 'pose_position_z', ...
+     'pose_orientation_x', 'pose_orientation_y', 'pose_orientation_z', 'pose_orientation_w');
 
 return;
 

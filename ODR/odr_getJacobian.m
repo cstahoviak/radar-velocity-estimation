@@ -1,4 +1,4 @@
-function [ G, V, D ] = ODR_getJacobian( X, delta, beta, weights, d )
+function [ G, V, D ] = odr_getJacobian( X, delta, beta, weights, d )
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
 

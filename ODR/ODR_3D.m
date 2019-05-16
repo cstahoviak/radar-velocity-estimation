@@ -1,5 +1,5 @@
-function [ model, beta, cov_beta ] = ODR( radar_angle, radar_doppler, ...
-    d, beta0, delta0, weights )
+function [ model, beta, cov_beta ] = ODR_3D( radar_doppler, radar_azimuth, ...
+    radar_elevation, d, beta0, delta0, weights )
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -7,12 +7,13 @@ function [ model, beta, cov_beta ] = ODR( radar_angle, radar_doppler, ...
 % 1. fine-tune Lagrange multiplier alpha
 % 2. How to define scaling matrices S and T - ODR Guidebook??
 
-Ntargets = size(delta0,1);
+Ntargets = size(radar_doppler,2);
 p = size(beta0,1);
+m = size(delta0,1)/Ntargets;
 
 % [ S, T ] = ODR_getScalingMatrices();
 S = 10*eye(p);          % s scaling matrix - 10 empirically chosen
-T = eye(Ntargets);      % t scaling matrix
+T = eye(Ntargets*m);    % t scaling matrix
 alpha = 0.001;          % Lagrange multiplier
 
 % initialize
@@ -26,12 +27,11 @@ options = optimoptions('fminunc','Display','none',...
 
 k = 1;
 converge_thres = 0.0001;
-% while (abs(s(1)) > converge_thres) ||  (abs(s(2)) > converge_thres)
 while norm(s) > converge_thres
     
     % get Jacobian matrices
-    [ G, V, D ] = odr_getJacobian( radar_angle, delta, ...
-        beta(:,k), weights, d );
+    [ G, V, D ] = odr_getJacobian3D( [radar_azimuth'; radar_elevation'], ...
+        delta, beta(:,k), weights, d );
     
 %     disp('G ='); disp(G)
 %     disp('V ='); disp(V)
@@ -40,8 +40,8 @@ while norm(s) > converge_thres
     % defined to simplify the notation in objectiveFunc
     P = V'*V + D^2 + alpha*T^2;
     
-    doppler_predicted =  simulateRadarDoppler2D(beta(:,k), ...
-    radar_angle', zeros(Ntargets,1), delta);
+    doppler_predicted =  simulateRadarDoppler3D(beta(:,k), ...
+    radar_azimuth', radar_elevation', zeros(Ntargets,1), delta);
 
     % re-calculate epsilon
     eps = doppler_predicted - radar_doppler';
@@ -61,7 +61,7 @@ while norm(s) > converge_thres
     
     k = k + 1;
     
-    if k > 100
+    if k > 150
 %         disp([k, s'])
 %         disp(beta)
         break
@@ -69,7 +69,7 @@ while norm(s) > converge_thres
 end
 
 model = beta(:,end);
-cov_beta = odr_getCovariance( G, V, D, eps, delta, weights, d );
+cov_beta = odr_getCovariance3D( G, V, D, eps, delta, weights, d );
 
 end
 

@@ -18,13 +18,14 @@ end
 
 if (Ntargets >= 5) && (numAngleBins > 1)
     % ransac requires a minimum of 5 targets to operate on
-    [ model,inlier_idx ] = ransac(data, @MLESAC_fitFcn, @MLESAC_distFcn, ...
+    [ model, inlier_idx ] = ransac(data, @MLESAC_fitFcn, @MLESAC_distFcn, ...
         sampleSize, maxDistance, 'ValidateModelFcn', @validateMSS);
 
 else 
     % ransac requires a minimum of 5 targets to operate on. In the case
     % where there are less than 5 targets, we will use the brute force
     % estimation scheme in place of MLESAC
+    warning('brute-force estimate used in place of MLESAC')
     [ model, ~ ] = getBruteForceEstimate( radar_doppler, ...
         radar_angle, conditionNum_thres);
     inlier_idx = ones(Ntargets,1);

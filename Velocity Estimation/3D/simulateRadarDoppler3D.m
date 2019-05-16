@@ -17,13 +17,16 @@ function [ radar_doppler] = simulateRadarDoppler3D( velocity_body, ...
 Ntargets = size(radar_azimuth,1);  % column vector
 radar_doppler = zeros(Ntargets,1);
 
+delta_theta = delta(1:Ntargets);
+delta_phi   = delta(Ntargets+1:2*Ntargets);
+
 for i=1:Ntargets
     
-    % add measurement noise distributed as N(0,sigma_theta_i)
-    theta = radar_azimuth(i) + delta(i);
+    % add measurement noise distributed as N(0,sigma_theta)
+    theta = radar_azimuth(i) + delta_theta(i);
     
-    % add measurement noise distributed as N(0,sigma_theta_i)
-    phi = radar_elevation(i) + delta(i);
+    % add measurement noise distributed as N(0,sigma_phi)
+    phi = radar_elevation(i) + delta_phi(i);
 
     radar_doppler(i) = velocity_body(1)*cos(theta)*cos(phi) + ...
         velocity_body(2)*sin(theta)*cos(phi) + ...

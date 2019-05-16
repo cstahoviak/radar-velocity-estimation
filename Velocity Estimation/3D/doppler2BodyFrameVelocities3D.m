@@ -1,5 +1,5 @@
 function [ v_hat ] = doppler2BodyFrameVelocities3D( radar_doppler, ...
-    radar_azimuth, radar_elevation, conditionNum_thres)
+    radar_azimuth, radar_elevation)
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -14,7 +14,7 @@ function [ v_hat ] = doppler2BodyFrameVelocities3D( radar_doppler, ...
 theta = radar_azimuth;
 phi = radar_elevation;
 
-[ numAngleBins, ~ ] = getNumAngleBins( radar_azimuth )
+[ numAngleBins, ~ ] = getNumAngleBins( radar_azimuth );
 
 if numAngleBins > 1
    % solve uniquely-determined problem for pair of targets (i,j)

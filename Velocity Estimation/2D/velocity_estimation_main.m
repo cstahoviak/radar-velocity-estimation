@@ -56,11 +56,11 @@ load(mat_file);
 % define start and finish indices to remove unwanted data at start and end
 % of test run
 start = 3;
-% finish = 1078;  % flight with only  static targets
-finish = 1070;  % flight with dynamics
+finish = 1078;  % flight with only  static targets
+% finish = 1070;  % flight with dynamics
 
-start = 1;
-finish = 1103;
+% start = 1;
+% finish = 1103;
 
 radar_range       = radar_fwd_range(start:finish,:);
 radar_intensity   = radar_fwd_intensity(start:finish,:);
@@ -126,7 +126,7 @@ int_range = [max_intensity; 5];
 sigma_vr = 0.044;     % [m/s]
 load('radar_angle_bins.mat')
 
-norm_thresh = 1.4;
+norm_thresh = 1.3;
 % norm_thresh = 1e6;
 
 %% Get Vicon Body-Frame Velocities
@@ -321,7 +321,7 @@ for i=1:NScans
             end
             
             sigma_odr(i,:) = [sqrt(cov(1,1)), sqrt(cov(2,2))];
-            sigma_odr_weighted(i,:) = [sqrt(cov_weighted(1,1)), sqrt(cov_weighted(2,2))];
+            sigma_odr_weighted(i,:) = real([sqrt(cov_weighted(1,1)), sqrt(cov_weighted(2,2))]);
             
         else
             vhat_ODR(i,:)          = NaN*ones(1,2);
@@ -484,7 +484,7 @@ plot(radar_time_second,vecnorm(vhat_MLESAC')); hold on;
 % plot(radar_time_second,vecnorm(vhat_bf'), '--');
 
 figure(21)
-plot(radar_time_second,vecnorm(vhat_ODR')); hold on;
+plot(radar_time_second,vecnorm(vhat_ODR_weighted')); hold on;
 
 figure(22)
 plot(radar_time_second,std_dev_bf(:,1)); hold on;
