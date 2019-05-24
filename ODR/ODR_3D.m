@@ -1,5 +1,5 @@
-function [ model, beta, cov_beta ] = ODR_3D( radar_doppler, radar_azimuth, ...
-    radar_elevation, d, beta0, delta0, weights )
+function [ model, beta, cov_beta, iter ] = ODR_3D( radar_doppler, radar_azimuth, ...
+    radar_elevation, d, beta0, delta0, weights, converge_thres )
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -26,7 +26,7 @@ options = optimoptions('fminunc','Display','none',...
     'Algorithm','quasi-newton');
 
 k = 1;
-converge_thres = 0.0001;
+% converge_thres = 0.0002;
 while norm(s) > converge_thres
     
     % get Jacobian matrices
@@ -58,18 +58,19 @@ while norm(s) > converge_thres
     delta = delta + T*t;
     
 %     disp([k, s', norm(s)])
-    
     k = k + 1;
     
-    if k > 150
+    if k > 50
 %         disp([k, s'])
 %         disp(beta)
+        disp('ODR_3D: max iterations reached')
         break
     end
 end
 
 model = beta(:,end);
 cov_beta = odr_getCovariance3D( G, V, D, eps, delta, weights, d );
+iter = k-1;
 
 end
 

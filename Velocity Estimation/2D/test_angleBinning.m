@@ -118,7 +118,7 @@ end
 
 %% Define Unique Angle Bins
 
-bin_thres = 0.009;      % [rad]
+bin_thres = 0.01;      % [rad] tuned for the 1642
 
 % initialize
 bins_fwd = [];
@@ -214,7 +214,7 @@ end
 % define radar angular bins
 radar_angle_bins = mean([bins_fwd, bins_lat],2);
 
-% calcualte sigma_theta by calcualting the angular bin spacing
+% calculate sigma_theta by calculating the angular bin spacing
 diff = zeros(size(radar_angle_bins,1)-1,1);
 for i=1:size(radar_angle_bins,1) - 1
     diff(i) = radar_angle_bins(i+1) - radar_angle_bins(i);
@@ -230,18 +230,20 @@ sigma_theta = mean(diff(2:end))
 
 disp('HERE')
 
-[~,bins_fwd2] = getNumAngleBins(angle_bins_fwd')
-[~,bins_lat2] = getNumAngleBins(angle_bins_lat')
+[~,bins_fwd2] = getNumAngleBins(angle_bins_fwd');
+[~,bins_lat2] = getNumAngleBins(angle_bins_lat');
 
 disp([bins_fwd, bins_fwd2, bins_fwd - bins_fwd2, ...
     bins_lat, bins_lat2, bins_lat - bins_lat2]);
+
+return;
 
 %% Another test
 
 clc;
 clear;
 
-load('radar_angle_bins.mat')
+load('1642_azimuth_bins.mat')
 
 [~,bins] = getNumAngleBins(radar_angle_bins');
 

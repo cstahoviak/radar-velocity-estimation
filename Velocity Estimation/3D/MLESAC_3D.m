@@ -12,10 +12,6 @@ Ntargets = size(data,1);
 
 [ numAngleBins, ~ ] = getNumAngleBins( radar_azimuth );
 
-if numAngleBins == 1
-    disp('HERE');
-end
-
 if (Ntargets >= 5) %&& (numAngleBins > 1)
     % ransac requires a minimum of 5 targets to operate on
     [ model, inlier_idx ] = ransac(data, @MLESAC_fitFcn, @MLESAC_distFcn, ...

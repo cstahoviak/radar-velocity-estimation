@@ -4,7 +4,7 @@ function [ numAngleBins, bins ] = getNumAngleBins( radar_angle )
 
 % NOTE: radar_angle should be a row vector
 
-bin_thres = 0.009;      % [rad]
+bin_thres = 0.01;      % [rad] - for 1642
 
 angle_bins = unique(radar_angle);
 

@@ -7,7 +7,10 @@ function [ model, v_hat_all ] = getBruteForceEstimate3D( ...
 Ntargets = size(radar_doppler,2);
 iter = round(factorial(Ntargets)/(6*factorial(Ntargets-3)));
 
-if Ntargets > 1
+[ numAzimuthBins, ~ ] = getNumAngleBins( radar_azimuth );
+[ numElevBins, ~ ] = getNumAngleBins( radar_elevation );
+
+if Ntargets > 2
     % initialize velocity estimate vector
     v_hat = zeros(3,iter);
 
@@ -37,6 +40,7 @@ if Ntargets > 1
         % problem for any two targets in the scan. This is the result of M
         % being close to singular for all pairs of targets, i.e. the
         % targets have identical angular locations.
+        model = NaN*ones(3,1);
         v_hat_all = NaN*ones(3,1);
     end
       
@@ -47,7 +51,7 @@ else
     v_hat_all = NaN*ones(3,1);
 end
 
-if ( Ntargets > 3 ) && ( ~isempty(v_hat_nonNaN) )
+if ( Ntargets > 2 ) && ( ~isempty(v_hat_nonNaN) )
     % if there are more than 2 targets in the scan (resulting in a minimum
     % of 3 estimates of the velocity vector), AND there exists at least one
     % non-singular solution to the uniquely-determined problem
@@ -84,25 +88,29 @@ if ( Ntargets > 3 ) && ( ~isempty(v_hat_nonNaN) )
     model = mean(v_hat_nonNaN(:,idx_inlier),2);
     v_hat_all = v_hat(:,idx_inlier);
     
+else
+    % do nothing for now...
+%     error('getBruteForceEstimate3D: should not get here!')
+    
 % NOTE: Below this point not adapted for the 3D case
     
-elseif ( Ntargets > 1 ) && ( ~isempty(v_hat_nonNaN) )
-    % there are 2 targets in the scan, AND their solution to the
-    % uniquely-determined problem produced a non-singular matrix M
-    model = v_hat; 
-    v_hat_all = v_hat;
-    
-elseif ( Ntargets > 1 ) && ( isempty(v_hat_nonNaN) )
-    % there are 2 targets in the scan, AND their solution to the
-    % uniquely-determined problem produced a singular matrix M, i.e. the
-    % targets have identical angular locations.
-    model = NaN*ones(2,1);
-    v_hat_all = NaN*ones(2,1);
-     
-else
-    % there is a single target in the scan, and the solution to the
-    % uniquely-determined problem is not possible
-    model = NaN*ones(2,1);
+% elseif ( Ntargets > 1 ) && ( ~isempty(v_hat_nonNaN) )
+%     % there are 2 targets in the scan, AND their solution to the
+%     % uniquely-determined problem produced a non-singular matrix M
+%     model = v_hat; 
+%     v_hat_all = v_hat;
+%     
+% elseif ( Ntargets > 1 ) && ( isempty(v_hat_nonNaN) )
+%     % there are 2 targets in the scan, AND their solution to the
+%     % uniquely-determined problem produced a singular matrix M, i.e. the
+%     % targets have identical angular locations.
+%     model = NaN*ones(3,1);
+%     v_hat_all = NaN*ones(3,1);
+%      
+% else
+%     % there is a single target in the scan, and the solution to the
+%     % uniquely-determined problem is not possible
+%     model = NaN*ones(3,1);
 end
 
 end

@@ -16,20 +16,20 @@
 % ===========================================
 
 % Input file information
-input_directory   = '/home/carl/Data/subT/radar-rig/vicon_2019-05-08/';
-filename_root     = 'cfar-1280_10Hz_run1';
+input_directory   = '/home/carl/Data/subT/Fleming/fleming_radar_2019-05-17/cfar-800/';
+filename_root     = 'cfar-800_10Hz_run2';
 input_suffix      = '.bag';
 
 % Output file information
-output_directory  = '/home/carl/Data/subT/radar-rig/vicon_2019-05-08/mat_files/';
+output_directory  = '/home/carl/Data/subT/Fleming/fleming_radar_2019-05-17/mat_files/';
 output_suffix     = '.mat';
 
 % topic information
 radar_topic       = '/mmWaveDataHdl/RScan';
 % radar_fwd_topic   = '/radar_fwd/mmWaveDataHdl/RScan';
 % radar_lat_topic   = '/radar_lat/mmWaveDataHdl/RScan';
-% vrpn_twist_topic  = '/vrpn_client_node/RadarQuad/twist';
-vrpn_pose_topic   = '/vrpn_node/radar_jackal/pose';
+vrpn_twist_topic  = '/vrpn_client_node/A01Radar/twist';
+vrpn_pose_topic   = '/vrpn_client_node/A01Radar/pose';
 odom_topic        = '/odom';
 tf_topic          = '/tf';
 
@@ -155,7 +155,7 @@ radar_messages = readMessages(radar_bag);
 % pre-define the output variables
 [m,~]    = size(radar_messages);
 
-max_num_targets   = 100;
+max_num_targets   = 350;
 
 radar_x           = ones(m,max_num_targets) .* NaN;
 radar_y           = ones(m,max_num_targets) .* NaN;
@@ -365,74 +365,74 @@ end % end for r loop
 %    
 % end % end for r loop
 
-% %% Get the Vicon Twist messages
-% % =======================
+%% Get the Vicon Twist messages
+% =======================
+
+twist_bag   = select(bag, 'Topic', vrpn_twist_topic);
+
+% The properties are:
+
+
+%% Get the time stamp for all Twist messages
+
+time_stamp_table  = twist_bag.MessageList(:,1);
+twist_time_stamp  = time_stamp_table{:,1};
+twist_time_second = twist_time_stamp - twist_time_stamp(1);
+
+%% Read all Twist messages
+
+twist_messages = readMessages(twist_bag);
+
+
+%% Display the contents of one twist message cell
+
+% twist_messages{1}
+%   ROS TwistStamped message with properties:
 % 
-% twist_bag   = select(bag, 'Topic', vrpn_twist_topic);
+%     MessageType: 'geometry_msgs/TwistStamped'
+%          Header: [1×1 Header]
+%           Twist: [1×1 Twist]
+
+% twist_messages{1}.Twist
+%   ROS Twist message with properties:
 % 
-% % The properties are:
+%     MessageType: 'geometry_msgs/Twist'
+%          Linear: [1×1 Vector3]
+%         Angular: [1×1 Vector3]
+
+% twist_messages{1}.Twist.Linear
+%   ROS Vector3 message with properties:
 % 
-% 
-% %% Get the time stamp for all Twist messages
-% 
-% time_stamp_table  = twist_bag.MessageList(:,1);
-% twist_time_stamp  = time_stamp_table{:,1};
-% twist_time_second = twist_time_stamp - twist_time_stamp(1);
-% 
-% %% Read all Twist messages
-% 
-% twist_messages = readMessages(twist_bag);
-% 
-% 
-% %% Display the contents of one twist message cell
-% 
-% % twist_messages{1}
-% %   ROS TwistStamped message with properties:
-% % 
-% %     MessageType: 'geometry_msgs/TwistStamped'
-% %          Header: [1×1 Header]
-% %           Twist: [1×1 Twist]
-% 
-% % twist_messages{1}.Twist
-% %   ROS Twist message with properties:
-% % 
-% %     MessageType: 'geometry_msgs/Twist'
-% %          Linear: [1×1 Vector3]
-% %         Angular: [1×1 Vector3]
-% 
-% % twist_messages{1}.Twist.Linear
-% %   ROS Vector3 message with properties:
-% % 
-% %     MessageType: 'geometry_msgs/Vector3'
-% %               X: -0.0172
-% %               Y: -0.0118
-% %               Z: 0.0264
-% 
-% 
-% %% Get all Twist measurements, for all variables, and for all messages
-% 
-% % pre-define the output variables
-% [m,~]    = size(twist_messages);
-% 
-% twist_linear_x           = ones(m,1) .* NaN;
-% twist_linear_y           = ones(m,1) .* NaN;
-% twist_linear_z           = ones(m,1) .* NaN;
-% twist_angular_x          = ones(m,1) .* NaN;
-% twist_angular_y          = ones(m,1) .* NaN;
-% twist_angular_z          = ones(m,1) .* NaN;
-% 
-% % process each meassage
-% for r = 1:m
-%     
-%    twist_linear_x(r) = twist_messages{r}.Twist.Linear.X;
-%    twist_linear_y(r) = twist_messages{r}.Twist.Linear.Y;
-%    twist_linear_z(r) = twist_messages{r}.Twist.Linear.Z;
-%    
-%    twist_angular_x(r) = twist_messages{r}.Twist.Angular.X;
-%    twist_angular_y(r) = twist_messages{r}.Twist.Angular.Y;
-%    twist_angular_z(r) = twist_messages{r}.Twist.Angular.Z;
-%    
-% end % end for r loop
+%     MessageType: 'geometry_msgs/Vector3'
+%               X: -0.0172
+%               Y: -0.0118
+%               Z: 0.0264
+
+
+%% Get all Twist measurements, for all variables, and for all messages
+
+% pre-define the output variables
+[m,~]    = size(twist_messages);
+
+twist_linear_x           = ones(m,1) .* NaN;
+twist_linear_y           = ones(m,1) .* NaN;
+twist_linear_z           = ones(m,1) .* NaN;
+twist_angular_x          = ones(m,1) .* NaN;
+twist_angular_y          = ones(m,1) .* NaN;
+twist_angular_z          = ones(m,1) .* NaN;
+
+% process each meassage
+for r = 1:m
+    
+   twist_linear_x(r) = twist_messages{r}.Twist.Linear.X;
+   twist_linear_y(r) = twist_messages{r}.Twist.Linear.Y;
+   twist_linear_z(r) = twist_messages{r}.Twist.Linear.Z;
+   
+   twist_angular_x(r) = twist_messages{r}.Twist.Angular.X;
+   twist_angular_y(r) = twist_messages{r}.Twist.Angular.Y;
+   twist_angular_z(r) = twist_messages{r}.Twist.Angular.Z;
+   
+end % end for r loop
 
 %% Get the Vicon Pose messages
 % =======================
@@ -530,6 +530,8 @@ end % end for r loop
 save(output_filename, ...
      'radar_time_stamp','radar_time_second','radar_x','radar_y','radar_z', ...
      'radar_range','radar_intensity','radar_doppler', ...
+     'twist_time_stamp','twist_time_second', ...
+     'twist_linear_x','twist_linear_y','twist_linear_z','twist_angular_x','twist_angular_y','twist_angular_z', ...
      'pose_time_stamp','pose_time_second', ...
      'pose_position_x', 'pose_position_y', 'pose_position_z', ...
      'pose_orientation_x', 'pose_orientation_y', 'pose_orientation_z', 'pose_orientation_w');
