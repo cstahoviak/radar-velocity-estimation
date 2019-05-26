@@ -139,7 +139,7 @@ xlim([0, twist_time_second(end)]);
 p = 3;  % dimension of velocity estimate vector
 NScans = size(radar_doppler,1);
 
-thresholds = [0.0001, 0.0002, 0.0005, 0.001, 0.005, 0.009]';
+thresholds = [0.0001, 0.0002, 0.0005, 0.001, 0.005, 0.009, 0.025]';
 thresholds = repelem(thresholds,5);
 % thresholds = sort(thresholds,'descend');
 
@@ -267,7 +267,7 @@ for m=1:MCiter
         radar_time_second, twist_time_second, twist_linear_body, p);
     
     mc_study(m,:) = [thresholds(m), RMSE_mlesac', RMSE_odr_weighted', ...
-        mean(odr_iter-1)];
+        mean(odr_iter)];
     
 end
 
@@ -279,7 +279,7 @@ plot(mc_study(:,1), mc_study(:,3),'-o');
 plot(mc_study(:,1), mc_study(:,4),'-o');
 xlabel('convergence threshold','Interpreter','latex')
 ylabel('RMSE [m/s]','Interpreter','latex')
-title({'Monte Carlo Study - MLESAC','cfar-800\_10Hz\_run0'},'Interpreter','latex')
+title({'Monte Carlo Study - MLESAC','cfar-1000\_10Hz\_run0'},'Interpreter','latex')
 hdl = legend('$v_x$','$v_y$','$v_z$');
 set(hdl,'Interpreter','latex')
 
@@ -289,7 +289,7 @@ plot(mc_study(:,1), mc_study(:,6),'-o');
 plot(mc_study(:,1), mc_study(:,7),'-o');
 xlabel('convergence threshold','Interpreter','latex')
 ylabel('RMSE [m/s]','Interpreter','latex')
-title({'Monte Carlo Study - weighted ODR','cfar-800\_10Hz\_run0'},'Interpreter','latex')
+title({'Monte Carlo Study - weighted ODR','cfar-1000\_10Hz\_run0'},'Interpreter','latex')
 hdl = legend('$v_x$','$v_y$','$v_z$');
 set(hdl,'Interpreter','latex')
 
@@ -297,7 +297,7 @@ figure(12)
 plot(mc_study(:,1), mc_study(:,8),'-o')
 xlabel('convergence threshold','Interpreter','latex')
 ylabel('ODR iterations','Interpreter','latex')
-title({'Monte Carlo Study - ODR Iterations','cfar-800\_10Hz\_run0'},'Interpreter','latex')
+title({'Monte Carlo Study - ODR Iterations','cfar-1000\_10Hz\_run0'},'Interpreter','latex')
 hdl = legend('ODR iterations');
 set(hdl,'Interpreter','latex')
 
@@ -336,7 +336,7 @@ errorbar(RMSE_avg(:,1),RMSE_avg(:,3),RMSE_std(:,3));
 errorbar(RMSE_avg(:,1),RMSE_avg(:,4),RMSE_std(:,4));
 xlabel('convergence threshold','Interpreter','latex')
 ylabel('RMSE [m/s]','Interpreter','latex')
-title({'Monte Carlo Study - MLESAC','cfar-800\_10Hz\_run0'},'Interpreter','latex')
+title({'Monte Carlo Study - MLESAC','cfar-1000\_10Hz\_run0'},'Interpreter','latex')
 hdl = legend('$v_x$','$v_y$','$v_z$');
 set(hdl,'Interpreter','latex')
 
@@ -346,7 +346,7 @@ errorbar(RMSE_avg(:,1),RMSE_avg(:,6),RMSE_std(:,6));
 errorbar(RMSE_avg(:,1),RMSE_avg(:,7),RMSE_std(:,7));
 xlabel('convergence threshold','Interpreter','latex')
 ylabel('RMSE [m/s]','Interpreter','latex')
-title({'Monte Carlo Study - ODR','cfar-800\_10Hz\_run0'},'Interpreter','latex')
+title({'Monte Carlo Study - ODR','cfar-1000\_10Hz\_run0'},'Interpreter','latex')
 hdl = legend('$v_x$','$v_y$','$v_z$');
 set(hdl,'Interpreter','latex')
 

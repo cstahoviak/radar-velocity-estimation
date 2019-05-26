@@ -29,8 +29,17 @@ format compact
 
 %% Load Data and ROS bag
 
-path     = '/home/carl/Data/subT/radar-rig/vicon_2019-05-08/';
-filename = 'cfar-1280_10Hz_run0';
+% vehicle = 'jackal';
+vehicle = 'quad';
+
+if strcmp(vehicle,'quad')
+    path = '/home/carl/Data/subT/Fleming/3d_velEstimation_2019-05-17/';
+elseif strcmp(vehicle,'jackal')
+    path = '/home/carl/Data/subT/radar-rig/vicon_2019-05-08/';
+else
+    path = '';
+end
+filename = 'cfar-800_10Hz_run0';
 filetype = '.mat';
 
 mat_file = strcat(path,'/mat_files/',filename,filetype);
@@ -97,46 +106,152 @@ d = [sigma_vr/sigma_theta; sigma_vr/sigma_phi];
 norm_thresh = inf;
 converge_thres = 0.005;
 
-%% Get Vicon Body-Frame Velocities
+%% Get Vicon Body-Frame Velocities - Central Diff + Lowpass Filter
+
+% plot ground-truth position
+figure(100)
+subplot(3,1,1);
+plot(pose_time_second,pose_position_x);
+title('Ground Truth Position','Interpreter','latex');
+ylabel('$x$ [m]','Interpreter','latex');
+subplot(3,1,2);
+plot(pose_time_second,pose_position_y);
+ylabel('$y$ [m]','Interpreter','latex');
+subplot(3,1,3);
+plot(pose_time_second,pose_position_z);
+ylabel('$z$ [m]','Interpreter','latex');
+xlim([0, pose_time_second(end)]);
+xlabel('time [s]','Interpreter','latex');
+hdl = legend('Vicon system');
+set(hdl,'Interpreter','latex')
 
 % NOTE: Vicon pose message orientation in N.W.U. frame
 orientation = [pose_orientation_w, ... 
                pose_orientation_x, ... 
                pose_orientation_y, ...
                pose_orientation_z];
+           
+% get euler angles
+euler_angles = quat2eul(orientation);
+           
+% use central difference method to calculate derivative
+h = 0.01;   % vrpn system @ 100 Hz
+velocity_x = central_diff(pose_position_x, h);
+velocity_y = central_diff(pose_position_y, h);
+velocity_z = central_diff(pose_position_z, h);
+velocity = [velocity_x, velocity_y, velocity_z];
 
-% twist_linear = [twist_linear_x, twist_linear_y, twist_linear_z];
-% twist_linear_body = getBodyFrameVelocities( twist_linear, orientation, ...
-%     pose_time_stamp, twist_time_stamp );
+velocity_time_stamp = pose_time_stamp(2:end-1);
+velocity_time_second = pose_time_second(2:end-1);
+
+% velocity_x = diff(pose_position_x);
+% velocity_y = diff(pose_position_y);
+% velocity_z = diff(pose_position_z);
+% velocity = [velocity_x, velocity_y, velocity_z];
 % 
-% % Map from NWU to NED coordinate frame
-% twist_linear_body(:,2) = -twist_linear_body(:,2);
-% twist_linear_body(:,3) = -twist_linear_body(:,3);
+% velocity_time_stamp = pose_time_stamp(1:end-1);
+% velocity_time_second = pose_time_second(1:end-1);
 % 
-% % twist_linear_body = smoothdata(twist_linear_body,1);
+velocity_body = getBodyFrameVelocities( velocity, orientation, ...
+        pose_time_stamp, velocity_time_stamp );
+
+% Map from NWU to NED coordinate frame
+velocity_body(:,2) = -velocity_body(:,2);
+velocity_body(:,3) = -velocity_body(:,3);
+    
+% apply lowpass filtering to velocity data
+sample_freq = 100;     % vrpn system @ 100 Hz
+fpass = 0.12;
+velocity_body = lowpass(velocity_body,fpass,sample_freq);
+    
+% plot ground truth body-frame velocities
+plot(ax_h(1), velocity_time_second, velocity_body)
+hdl = legend(ax_h(1), '$v_x$','$v_y$','$v_z$');
+set(hdl,'Interpreter','latex','Location','best');
+xlim(ax_h(1),[0, velocity_time_second(end)]);
+
+% plot euler angles - to visualize pitch and roll
+plot(ax_h(2), pose_time_second, rad2deg(euler_angles(:,2:3)));
+hdl = legend(ax_h(2), 'pitch, $\theta$', 'roll, $\phi$');
+set(hdl,'Interpreter','latex','Location','best');
+% ylim(ax_h(2),[-20,20]);
+xlim(ax_h(2),[0, pose_time_second(end)]);
+           
+if strcmp(vehicle,'quad')
+    twist_linear = [twist_linear_x, twist_linear_y, twist_linear_z];
+    twist_linear_body = getBodyFrameVelocities( twist_linear, orientation, ...
+        pose_time_stamp, twist_time_stamp );
+
+    % Map from NWU to NED coordinate frame
+    twist_linear_body(:,2) = -twist_linear_body(:,2);
+    twist_linear_body(:,3) = -twist_linear_body(:,3);
+    
+    % implement R-LOESS filtering
+    span = 5;
+    method = 'moving';
+    
+    smoothed_vx = smooth(velocity_body(:,1),span,method);
+    smoothed_vy = smooth(velocity_body(:,2),span,method);
+    smoothed_vz = smooth(velocity_body(:,3),span,method);
+    
+    smoothed_velocity_body = [smoothed_vx, smoothed_vy, smoothed_vz];
 % 
-% % get euler angles
-% euler_angles = quat2eul(orientation);
+%     % twist_linear_body = smoothdata(twist_linear_body,1);
 % 
+%     % plot ground truth body-frame velocities
+%     plot(ax_h(1), twist_time_second, twist_linear_body)
+%     hdl = legend(ax_h(1), '$v_x$','$v_y$','$v_z$');
+%     set(hdl,'Interpreter','latex','Location','best');
+%     xlim(ax_h(1),[0, twist_time_second(end)]);
+% 
+%     % plot euler angles - to visualize pitch and roll
+%     plot(ax_h(2), pose_time_second, rad2deg(euler_angles(:,2:3)));
+%     hdl = legend(ax_h(2), 'pitch, $\theta$', 'roll, $\phi$');
+%     set(hdl,'Interpreter','latex','Location','best');
+%     % ylim(ax_h(2),[-20,20]);
+%     xlim(ax_h(2),[0, pose_time_second(end)]);
+% 
+%     figure(3)
+%     plot(twist_time_second, vecnorm(twist_linear_body,2,2)); hold on;
+%     plot(twist_time_second(1:end-1), abs(diff(vecnorm(twist_linear_body,2,2))))
+%     ylabel('body-frame velocity vector norm','Interpreter','latex')
+%     xlabel('time [s]','Interpreter','latex');
+%     xlim([0, twist_time_second(end)]); 
+end
+
+%% Get Andrew's Ground Truth Body-Frame Velocities
+
+gt_path = strcat(path,'processed_data/mat_files/');
+subdir   = 'ground_truth/';
+suffix   = '_gt';
+
+gt_file = strcat(gt_path,subdir,filename,suffix,filetype);
+load(gt_file);
+
+gt_position    = [gt_position_x, gt_position_y, gt_position_z];
+gt_orientation = [gt_orientation_w, gt_orientation_x, ...
+                  gt_orientation_y, gt_orientation_z];
+gt_velocity    = [gt_velocity_x, gt_velocity_y, gt_velocity_z];
+
+% transfrom grouth-truth velocities
+gt_velocity_body = getBodyFrameVelocities( gt_velocity, gt_orientation, ...
+    gt_time_stamp, gt_time_stamp );
+
+% get euler angles
+euler_gt = quat2eul(gt_orientation);
+
 % % plot ground truth body-frame velocities
-% plot(ax_h(1), twist_time_second, twist_linear_body)
+% plot(ax_h(1), gt_time_second, gt_velocity_body)
 % hdl = legend(ax_h(1), '$v_x$','$v_y$','$v_z$');
 % set(hdl,'Interpreter','latex','Location','best');
-% xlim(ax_h(1),[0, twist_time_second(end)]);
+% xlim(ax_h(1),[0, gt_time_second(end)]);
 % 
 % % plot euler angles - to visualize pitch and roll
-% plot(ax_h(2), pose_time_second, rad2deg(euler_angles(:,2:3)));
-% hdl = legend(ax_h(2), 'pitch, $\phi$', 'roll, $\theta$');
+% plot(ax_h(2), gt_time_second, rad2deg(euler_gt(:,2:3)));
+% hdl = legend(ax_h(2), 'pitch, $\theta$', 'roll, $\phi$');
 % set(hdl,'Interpreter','latex','Location','best');
 % % ylim(ax_h(2),[-20,20]);
-% xlim(ax_h(2),[0, pose_time_second(end)]);
-% 
-% figure(3)
-% plot(twist_time_second, vecnorm(twist_linear_body,2,2)); hold on;
-% plot(twist_time_second(1:end-1), abs(diff(vecnorm(twist_linear_body,2,2))))
-% ylabel('body-frame velocity vector norm','Interpreter','latex')
-% xlabel('time [s]','Interpreter','latex');
-% xlim([0, twist_time_second(end)]);
+% xlim(ax_h(2),[0, gt_time_second(end)]);
 
 %% Implement Estimation Scheme
 
@@ -252,16 +367,66 @@ end
 
 %% Compute RMSE for various estimation schemes
 
-% [RMSE_mlesac, error_mlesac] = getDopplerRMSE( vhat_MLESAC, radar_time_second, ...
-%     twist_time_second, twist_linear_body, p);
-% 
-% [RMSE_odr_weighted, error_odr] = getDopplerRMSE( vhat_ODR_weighted, ...
-%     radar_time_second, twist_time_second, twist_linear_body, p);
-% 
-% disp('RMSE_MLESAC = ')
-% disp(RMSE_mlesac)
-% disp('RMSE_ODR_weighted = ')
-% disp(RMSE_odr_weighted)
+if strcmp(vehicle,'quad')
+    % Vicon Twist Data - Noisy!
+    [RMSE_mlesac_vicon, error_mlesac_vicon] = getDopplerRMSE( vhat_MLESAC, ...
+        radar_time_stamp, twist_time_stamp, twist_linear_body, p);
+    [RMSE_odr_weighted_vicon, error_odr_vicon] = getDopplerRMSE( vhat_ODR_weighted, ...
+        radar_time_stamp, twist_time_stamp, twist_linear_body, p);
+    
+    % Andrew's Ground Truth Method
+    [RMSE_mlesac_gt, error_mlesac_gt] = getDopplerRMSE( vhat_MLESAC, ...
+        radar_time_stamp, gt_time_stamp, gt_velocity_body, p);
+    [RMSE_odr_weighted_gt, error_odr_gt] = getDopplerRMSE( vhat_ODR_weighted, ...
+        radar_time_stamp, gt_time_stamp, gt_velocity_body, p);
+    
+    % central difference + lowpass filter method
+    [RMSE_mlesac_lowpass, error_mlesac_lowpass] = getDopplerRMSE( vhat_MLESAC, ...
+        radar_time_stamp, velocity_time_stamp, velocity_body, p);
+    [RMSE_odr_weighted_lowpass, error_odr_lowpass] = getDopplerRMSE( vhat_ODR_weighted, ...
+        radar_time_stamp, velocity_time_stamp, velocity_body, p);
+    
+    % central diff + lowpass + moving avg filter
+    [RMSE_mlesac_smooth, error_mlesac_smooth] = getDopplerRMSE( vhat_MLESAC, ...
+        radar_time_stamp, velocity_time_stamp, smoothed_velocity_body, p);
+    [RMSE_odr_weighted_smooth, error_odr_smooth] = getDopplerRMSE( vhat_ODR_weighted, ...
+        radar_time_stamp, velocity_time_stamp, smoothed_velocity_body, p);
+
+    disp('RMSE_MLESAC (stamp) = ')
+    disp([RMSE_mlesac_vicon, RMSE_mlesac_gt, RMSE_mlesac_lowpass, RMSE_mlesac_smooth])
+    disp('RMSE_ODR_weighted (stamp) = ')
+    disp([RMSE_odr_weighted_vicon, RMSE_odr_weighted_gt, RMSE_odr_weighted_lowpass, RMSE_odr_weighted_smooth])
+    
+    [RMSE_mlesac_vicon, error_mlesac_vicon] = getDopplerRMSE( vhat_MLESAC, ...
+        radar_time_second, twist_time_second, twist_linear_body, p);
+    [RMSE_odr_weighted_vicon, error_odr_vicon] = getDopplerRMSE( vhat_ODR_weighted, ...
+        radar_time_second, twist_time_second, twist_linear_body, p);
+    
+    % Andrew's Ground Truth Method
+    [RMSE_mlesac_gt, error_mlesac_gt] = getDopplerRMSE( vhat_MLESAC, ...
+        radar_time_second, gt_time_second, gt_velocity_body, p);
+    [RMSE_odr_weighted_gt, error_odr_gt] = getDopplerRMSE( vhat_ODR_weighted, ...
+        radar_time_second, gt_time_second, gt_velocity_body, p);
+    
+    % central difference + lowpass filter method
+    [RMSE_mlesac_lowpass, error_mlesac_lowpass] = getDopplerRMSE( vhat_MLESAC, ...
+        radar_time_second, velocity_time_second, velocity_body, p);
+    [RMSE_odr_weighted_lowpass, error_odr_lowpass] = getDopplerRMSE( vhat_ODR_weighted, ...
+        radar_time_second, velocity_time_second, velocity_body, p);
+    
+    % central diff + lowpass + moving avg filter
+    [RMSE_mlesac_smooth, error_mlesac_smooth] = getDopplerRMSE( vhat_MLESAC, ...
+        radar_time_second, velocity_time_second, smoothed_velocity_body, p);
+    [RMSE_odr_weighted_smooth, error_odr_smooth] = getDopplerRMSE( vhat_ODR_weighted, ...
+        radar_time_second, velocity_time_second, smoothed_velocity_body, p);
+
+    disp('RMSE_MLESAC (second) = ')
+    disp([RMSE_mlesac_vicon, RMSE_mlesac_gt, RMSE_mlesac_lowpass, RMSE_mlesac_smooth])
+    disp('RMSE_ODR_weighted (second) = ')
+    disp([RMSE_odr_weighted_vicon, RMSE_odr_weighted_gt, RMSE_odr_weighted_lowpass, RMSE_odr_weighted_smooth])
+end
+
+return;
 
 %% Plot Data
 
@@ -278,39 +443,99 @@ cla(ax_h(17));
 cla(ax_h(18));
 
 % plot MLESAC estimate
-% plot(ax_h(5),twist_time_second,twist_linear_body(:,1),...
-%     'color',colors(2,:),'LineWidth',1);
+if strcmp(vehicle,'quad')
+    % Vicon Ground Truth - Noisy!
+%     plot(ax_h(5),twist_time_second,twist_linear_body(:,1),...
+%         'color',colors(2,:),'LineWidth',1);
+%     plot(ax_h(6),twist_time_second,twist_linear_body(:,2),...
+%         'color',colors(2,:),'LineWidth',1);
+%     plot(ax_h(7),twist_time_second,twist_linear_body(:,3),...
+%         'color',colors(2,:),'LineWidth',1);
+    
+    % Andrew's Ground Truth Method
+%     plot(ax_h(5),gt_time_second,gt_velocity_body(:,1),...
+%         'color',colors(2,:),'LineWidth',1);
+%     plot(ax_h(6),gt_time_second,gt_velocity_body(:,2),...
+%         'color',colors(2,:),'LineWidth',1);
+%     plot(ax_h(7),gt_time_second,gt_velocity_body(:,3),...
+%         'color',colors(2,:),'LineWidth',1);
+    
+%     % central difference + lowpass filter method
+%     plot(ax_h(5),velocity_time_second,velocity_body(:,1),...
+%         'color',colors(2,:),'LineWidth',1);
+%     plot(ax_h(6),velocity_time_second,velocity_body(:,2),...
+%         'color',colors(2,:),'LineWidth',1);
+%     plot(ax_h(7),velocity_time_second,velocity_body(:,3),...
+%         'color',colors(2,:),'LineWidth',1);
+    
+    % central diff + lowpass + moving avg filter
+    plot(ax_h(5),velocity_time_second,smoothed_velocity_body(:,1),...
+        'color',colors(2,:),'LineWidth',1);
+    plot(ax_h(6),velocity_time_second,smoothed_velocity_body(:,2),...
+        'color',colors(2,:),'LineWidth',1);
+    plot(ax_h(7),velocity_time_second,smoothed_velocity_body(:,3),...
+        'color',colors(2,:),'LineWidth',1);
+end
 plot(ax_h(5),radar_time_second,vhat_MLESAC(:,1),'k','LineWidth',1);
-% plot(ax_h(6),twist_time_second,twist_linear_body(:,2),...
-%     'color',colors(2,:),'LineWidth',1);
 plot(ax_h(6),radar_time_second,vhat_MLESAC(:,2),'k','LineWidth',1);
-% plot(ax_h(7),twist_time_second,twist_linear_body(:,3),...
-%     'color',colors(2,:),'LineWidth',1);
 plot(ax_h(7),radar_time_second,vhat_MLESAC(:,3),'k','LineWidth',1);
 % ylim(ax_h(6),[-1.5,1.5]); ylim(ax_h(7),[-1,1]);
 xlim(ax_h(5), [0, radar_time_second(end)]);
 xlim(ax_h(6), [0, radar_time_second(end)]);
 xlim(ax_h(7), [0, radar_time_second(end)]);
-% hdl = legend(ax_h(7),'Vicon system','MLESAC');
-hdl = legend(ax_h(5),'MLESAC');
+if strcmp(vehicle,'quad')
+    hdl = legend(ax_h(7),'Vicon system','MLESAC');
+else
+    hdl = legend(ax_h(5),'MLESAC');
+end
 set(hdl,'Interpreter','latex','Location','northwest')
 
 % plot weighted ODR estimate
-% plot(ax_h(10),twist_time_second,twist_linear_body(:,1), ...
-%     'color',colors(2,:),'LineWidth',1);
+if strcmp(vehicle,'quad')
+    % Vicon Ground Truth - Noisy!
+%     plot(ax_h(10),twist_time_second,twist_linear_body(:,1),...
+%         'color',colors(2,:),'LineWidth',1);
+%     plot(ax_h(11),twist_time_second,twist_linear_body(:,2),...
+%         'color',colors(2,:),'LineWidth',1);
+%     plot(ax_h(12),twist_time_second,twist_linear_body(:,3),...
+%         'color',colors(2,:),'LineWidth',1);
+    
+    % Andrew's Ground Truth Method
+%     plot(ax_h(10),gt_time_second,gt_velocity_body(:,1),...
+%         'color',colors(2,:),'LineWidth',1);
+%     plot(ax_h(11),gt_time_second,gt_velocity_body(:,2),...
+%         'color',colors(2,:),'LineWidth',1);
+%     plot(ax_h(12),gt_time_second,gt_velocity_body(:,3),...
+%         'color',colors(2,:),'LineWidth',1);
+    
+%     % central difference + lowpass filter method
+%     plot(ax_h(10),velocity_time_second,velocity_body(:,1),...
+%         'color',colors(2,:),'LineWidth',1);
+%     plot(ax_h(11),velocity_time_second,velocity_body(:,2),...
+%         'color',colors(2,:),'LineWidth',1);
+%     plot(ax_h(12),velocity_time_second,velocity_body(:,3),...
+%         'color',colors(2,:),'LineWidth',1);
+    
+    % central diff + lowpass + moving avg filter
+    plot(ax_h(10),velocity_time_second,smoothed_velocity_body(:,1),...
+        'color',colors(2,:),'LineWidth',1);
+    plot(ax_h(11),velocity_time_second,smoothed_velocity_body(:,2),...
+        'color',colors(2,:),'LineWidth',1);
+    plot(ax_h(12),velocity_time_second,smoothed_velocity_body(:,3),...
+        'color',colors(2,:),'LineWidth',1);
+end
 plot(ax_h(10),radar_time_second,vhat_ODR_weighted(:,1),'k','LineWidth',1);
-% plot(ax_h(11),twist_time_second,twist_linear_body(:,2), ...
-%     'color',colors(2,:),'LineWidth',1);
 plot(ax_h(11),radar_time_second,vhat_ODR_weighted(:,2),'k','LineWidth',1);
-% plot(ax_h(12),twist_time_second,twist_linear_body(:,3), ...
-%     'color',colors(2,:),'LineWidth',1);
 plot(ax_h(12),radar_time_second,vhat_ODR_weighted(:,3),'k','LineWidth',1);
 % ylim(ax_h(10),[-1,1.5]); ylim(ax_h(11),[-1,1]);
 xlim(ax_h(10), [0, radar_time_second(end)]);
 xlim(ax_h(11), [0, radar_time_second(end)]);
 xlim(ax_h(12), [0, radar_time_second(end)]);
-% hdl = legend(ax_h(11),'Vicon system','weighted ODR');
-hdl = legend(ax_h(10),'weighted ODR');
+if strcmp(vehicle,'quad')
+    hdl = legend(ax_h(11),'Vicon system','weighted ODR');
+else
+    hdl = legend(ax_h(10),'weighted ODR');
+end
 set(hdl,'Interpreter','latex','Location','northwest')
 
 K = 10;
