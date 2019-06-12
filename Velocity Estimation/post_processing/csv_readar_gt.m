@@ -13,7 +13,9 @@ format compact
 %% Load Data from CSV file
 
 % Input file information
+% path     = '/home/carl/Data/subT/radar-rig/vicon_2019-05-08/processed_data/';
 path     = '/home/carl/Data/subT/Fleming/3d_velEstimation_2019-05-17/processed_data/';
+subdir   = 'gt_raw_data/';
 run      = 'cfar-1280_10Hz_run2/';
 filename = 'gt';
 filetype = '.csv';
@@ -23,7 +25,7 @@ output_directory  = strcat(path,'mat_files/ground_truth/');
 output_suffix     = '.mat';
 output_filename   = strcat(output_directory,run(1:end-1),'_',filename,output_suffix)
 
-csv_file = strcat(path,run,filename,filetype)
+csv_file = strcat(path,subdir,run,filename,filetype)
 data = csvread(csv_file);
 
 %% Create variables to save

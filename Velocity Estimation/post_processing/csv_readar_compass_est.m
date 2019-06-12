@@ -13,10 +13,11 @@ format compact
 %% Load Data from CSV file
 
 % Input file information
-path     = '/home/carl/Data/subT/Fleming/3d_velEstimation_2019-05-17/processed_data/';
-subdir   = 'compass_ests/no_vel/';
-run      = 'cfar-1280_10Hz_run2/';
-filename = 'compass_pose';
+path     = '/home/carl/Data/subT/radar-rig/vicon_2019-05-08/processed_data/';
+% path     = '/home/carl/Data/subT/Fleming/3d_velEstimation_2019-05-17/processed_data/';
+subdir   = 'compass_ests/with_vel_005/';
+run      = 'cfar-800_10Hz_run0_0/';
+filename = 'compass_pose_aligned';
 filetype = '.csv';
 
 % Output file information

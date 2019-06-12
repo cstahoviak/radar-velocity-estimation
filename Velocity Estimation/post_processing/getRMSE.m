@@ -1,5 +1,5 @@
-function [ RMSE, error ] = getDopplerRMSE( velocity_estimate, radar_time, ...
-    velocity_time, velocity_gt, dim)
+function [ RMSE, error ] = getRMSE( estimate, estimate_time, ...
+    truth, truth_time, dim)
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -8,8 +8,8 @@ function [ RMSE, error ] = getDopplerRMSE( velocity_estimate, radar_time, ...
 % derivative used to find "spikes" in body-frame velocity
 % deriv =  abs(diff(vecnorm(velocity_gt,2,2)));
 
-NScans = size(velocity_estimate,1);
-error = zeros(NScans,3);
+NScans = size(estimate,1);
+error = zeros(NScans,dim);
 
 % thres = 2.2;
 thres = inf;
@@ -17,14 +17,14 @@ thres = inf;
 for i=1:NScans
     
     % get index of closest Vicon velocity estimate to current time step
-    [~,idx] = min( abs(velocity_time - radar_time(i)) );
+    [~,idx] = min( abs(truth_time - estimate_time(i)) );
     
-    if isnan(velocity_estimate(i,:))
+    if isnan(estimate(i,:))
 %         error(i,:) = zeros(1,2);
-        error(i,:) = velocity_gt(idx,1:dim);
+        error(i,:) = truth(idx,1:dim);
     else
-        if norm(velocity_gt(idx,:)) < thres
-            error(i,:) = velocity_gt(idx,1:dim) - velocity_estimate(i,:); 
+        if norm(truth(idx,:)) < thres
+            error(i,:) = truth(idx,1:dim) - estimate(i,:); 
         else
             % find closest value in twist_linear_body vector less than
             % threshold= - really what I need to do is smooth the ground

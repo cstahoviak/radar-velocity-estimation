@@ -24,6 +24,8 @@ radar_angle = atan(radar_y./radar_x);   % [rad]
 
 %% CREATE PLOTS
 
+load('colors.mat');
+
 plot_polar = true;
 
 % set y-axis limits
@@ -57,8 +59,8 @@ ylim([vx_ymin vx_ymax]); xlim([0 max([radar_time_second(end) twist_time_second(e
 fig4 = figure(4);
 ax4 = axes('Parent',fig4);
 hold on;
-h1 = title('Point Target Intensity Value');
-set(h1,'Interpreter','latex');
+% h1 = title('Point Target Intensity Value');
+% set(h1,'Interpreter','latex');
 xlabel('time [s]','Interpreter','latex');
 ylabel('Intensity [dB]','Interpreter','latex');
 xlim([0 radar_time_second(end)]);
@@ -248,9 +250,9 @@ for i=1:size(radar_doppler,1)
     h2 = scatter(ax2,t_nonZero,-doppler_nonZero,sz,'b','filled');
     
     % plot (non-zero doppler) intensity values at each time step
-    h4_1 = scatter(ax4,t,radar_intensity(i,idx),sz,'b','filled');
+    h4_1 = scatter(ax4,t,radar_intensity(i,idx),sz,colors(1,:),'filled');
     % filter intensity by zero Doppler velocity, NOTE: interesting horizantal line trend!
-    h4_2 = scatter(ax4,t_isZero,radar_intensity(i,idx_isZero),sz,'r','filled');
+    h4_2 = scatter(ax4,t_isZero,radar_intensity(i,idx_isZero),sz,colors(3,:),'filled');
     
     % filter (x,y) points by zero Doppler velocity
     scatter(ax5,radar_y(i,idx_nonNaN & idx_nonZero),radar_x(i,idx_nonNaN & idx_nonZero),sz,'b','filled');

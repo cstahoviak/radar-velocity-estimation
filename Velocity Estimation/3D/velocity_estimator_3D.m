@@ -104,7 +104,7 @@ d = [sigma_vr/sigma_theta; sigma_vr/sigma_phi];
 
 % norm_thresh = 1.3;
 norm_thresh = inf;
-converge_thres = 0.005;
+converge_thres = 0.0005;
 
 %% Get Vicon Body-Frame Velocities - Central Diff + Lowpass Filter
 
@@ -163,6 +163,16 @@ velocity_body(:,3) = -velocity_body(:,3);
 sample_freq = 100;     % vrpn system @ 100 Hz
 fpass = 0.12;
 velocity_body = lowpass(velocity_body,fpass,sample_freq);
+
+% implement moving-average filtering
+span = 5;
+method = 'moving';
+
+smoothed_vx = smooth(velocity_body(:,1),span,method);
+smoothed_vy = smooth(velocity_body(:,2),span,method);
+smoothed_vz = smooth(velocity_body(:,3),span,method);
+
+smoothed_velocity_body = [smoothed_vx, smoothed_vy, smoothed_vz];
     
 % plot ground truth body-frame velocities
 plot(ax_h(1), velocity_time_second, velocity_body)
@@ -185,17 +195,7 @@ if strcmp(vehicle,'quad')
     % Map from NWU to NED coordinate frame
     twist_linear_body(:,2) = -twist_linear_body(:,2);
     twist_linear_body(:,3) = -twist_linear_body(:,3);
-    
-    % implement R-LOESS filtering
-    span = 5;
-    method = 'moving';
-    
-    smoothed_vx = smooth(velocity_body(:,1),span,method);
-    smoothed_vy = smooth(velocity_body(:,2),span,method);
-    smoothed_vz = smooth(velocity_body(:,3),span,method);
-    
-    smoothed_velocity_body = [smoothed_vx, smoothed_vy, smoothed_vz];
-% 
+
 %     % twist_linear_body = smoothdata(twist_linear_body,1);
 % 
 %     % plot ground truth body-frame velocities
@@ -369,56 +369,57 @@ end
 
 if strcmp(vehicle,'quad')
     % Vicon Twist Data - Noisy!
-    [RMSE_mlesac_vicon, error_mlesac_vicon] = getDopplerRMSE( vhat_MLESAC, ...
-        radar_time_stamp, twist_time_stamp, twist_linear_body, p);
-    [RMSE_odr_weighted_vicon, error_odr_vicon] = getDopplerRMSE( vhat_ODR_weighted, ...
-        radar_time_stamp, twist_time_stamp, twist_linear_body, p);
+    [RMSE_mlesac_vicon, error_mlesac_vicon] = getRMSE( vhat_MLESAC, ...
+        radar_time_stamp, twist_linear_body, twist_time_stamp, p);
+    [RMSE_odr_weighted_vicon, error_odr_vicon] = getRMSE( vhat_ODR_weighted, ...
+        radar_time_stamp, twist_linear_body, twist_time_stamp, p);
     
     % Andrew's Ground Truth Method
-    [RMSE_mlesac_gt, error_mlesac_gt] = getDopplerRMSE( vhat_MLESAC, ...
-        radar_time_stamp, gt_time_stamp, gt_velocity_body, p);
-    [RMSE_odr_weighted_gt, error_odr_gt] = getDopplerRMSE( vhat_ODR_weighted, ...
-        radar_time_stamp, gt_time_stamp, gt_velocity_body, p);
+    [RMSE_mlesac_gt, error_mlesac_gt] = getRMSE( vhat_MLESAC, ...
+        radar_time_stamp, gt_velocity_body, gt_time_stamp, p);
+    [RMSE_odr_weighted_gt, error_odr_gt] = getRMSE( vhat_ODR_weighted, ...
+        radar_time_stamp, gt_velocity_body, gt_time_stamp, p);
     
     % central difference + lowpass filter method
-    [RMSE_mlesac_lowpass, error_mlesac_lowpass] = getDopplerRMSE( vhat_MLESAC, ...
-        radar_time_stamp, velocity_time_stamp, velocity_body, p);
-    [RMSE_odr_weighted_lowpass, error_odr_lowpass] = getDopplerRMSE( vhat_ODR_weighted, ...
-        radar_time_stamp, velocity_time_stamp, velocity_body, p);
+    [RMSE_mlesac_lowpass, error_mlesac_lowpass] = getRMSE( vhat_MLESAC, ...
+        radar_time_stamp, velocity_body, velocity_time_stamp, p);
+    [RMSE_odr_weighted_lowpass, error_odr_lowpass] = getRMSE( vhat_ODR_weighted, ...
+        radar_time_stamp, velocity_body, velocity_time_stamp, p);
     
     % central diff + lowpass + moving avg filter
-    [RMSE_mlesac_smooth, error_mlesac_smooth] = getDopplerRMSE( vhat_MLESAC, ...
-        radar_time_stamp, velocity_time_stamp, smoothed_velocity_body, p);
-    [RMSE_odr_weighted_smooth, error_odr_smooth] = getDopplerRMSE( vhat_ODR_weighted, ...
-        radar_time_stamp, velocity_time_stamp, smoothed_velocity_body, p);
+    [RMSE_mlesac_smooth, error_mlesac_smooth] = getRMSE( vhat_MLESAC, ...
+        radar_time_stamp, smoothed_velocity_body, velocity_time_stamp, p);
+    [RMSE_odr_weighted_smooth, error_odr_smooth] = getRMSE( vhat_ODR_weighted, ...
+        radar_time_stamp, smoothed_velocity_body, velocity_time_stamp, p);
 
     disp('RMSE_MLESAC (stamp) = ')
     disp([RMSE_mlesac_vicon, RMSE_mlesac_gt, RMSE_mlesac_lowpass, RMSE_mlesac_smooth])
     disp('RMSE_ODR_weighted (stamp) = ')
     disp([RMSE_odr_weighted_vicon, RMSE_odr_weighted_gt, RMSE_odr_weighted_lowpass, RMSE_odr_weighted_smooth])
     
-    [RMSE_mlesac_vicon, error_mlesac_vicon] = getDopplerRMSE( vhat_MLESAC, ...
-        radar_time_second, twist_time_second, twist_linear_body, p);
-    [RMSE_odr_weighted_vicon, error_odr_vicon] = getDopplerRMSE( vhat_ODR_weighted, ...
-        radar_time_second, twist_time_second, twist_linear_body, p);
+    % Vicon Twist Data - Noisy!
+    [RMSE_mlesac_vicon, error_mlesac_vicon] = getRMSE( vhat_MLESAC, ...
+        radar_time_second, twist_linear_body, twist_time_second, p);
+    [RMSE_odr_weighted_vicon, error_odr_vicon] = getRMSE( vhat_ODR_weighted, ...
+        radar_time_second, twist_linear_body, twist_time_second, p);
     
     % Andrew's Ground Truth Method
-    [RMSE_mlesac_gt, error_mlesac_gt] = getDopplerRMSE( vhat_MLESAC, ...
-        radar_time_second, gt_time_second, gt_velocity_body, p);
-    [RMSE_odr_weighted_gt, error_odr_gt] = getDopplerRMSE( vhat_ODR_weighted, ...
-        radar_time_second, gt_time_second, gt_velocity_body, p);
+    [RMSE_mlesac_gt, error_mlesac_gt] = getRMSE( vhat_MLESAC, ...
+        radar_time_second, gt_velocity_body, gt_time_second, p);
+    [RMSE_odr_weighted_gt, error_odr_gt] = getRMSE( vhat_ODR_weighted, ...
+        radar_time_second, gt_velocity_body, gt_time_second, p);
     
     % central difference + lowpass filter method
-    [RMSE_mlesac_lowpass, error_mlesac_lowpass] = getDopplerRMSE( vhat_MLESAC, ...
-        radar_time_second, velocity_time_second, velocity_body, p);
-    [RMSE_odr_weighted_lowpass, error_odr_lowpass] = getDopplerRMSE( vhat_ODR_weighted, ...
-        radar_time_second, velocity_time_second, velocity_body, p);
+    [RMSE_mlesac_lowpass, error_mlesac_lowpass] = getRMSE( vhat_MLESAC, ...
+        radar_time_second, velocity_body, velocity_time_second, p);
+    [RMSE_odr_weighted_lowpass, error_odr_lowpass] = getRMSE( vhat_ODR_weighted, ...
+        radar_time_second, velocity_body, velocity_time_second, p);
     
     % central diff + lowpass + moving avg filter
-    [RMSE_mlesac_smooth, error_mlesac_smooth] = getDopplerRMSE( vhat_MLESAC, ...
-        radar_time_second, velocity_time_second, smoothed_velocity_body, p);
-    [RMSE_odr_weighted_smooth, error_odr_smooth] = getDopplerRMSE( vhat_ODR_weighted, ...
-        radar_time_second, velocity_time_second, smoothed_velocity_body, p);
+    [RMSE_mlesac_smooth, error_mlesac_smooth] = getRMSE( vhat_MLESAC, ...
+        radar_time_second, smoothed_velocity_body, velocity_time_second, p);
+    [RMSE_odr_weighted_smooth, error_odr_smooth] = getRMSE( vhat_ODR_weighted, ...
+        radar_time_second, smoothed_velocity_body, velocity_time_second, p);
 
     disp('RMSE_MLESAC (second) = ')
     disp([RMSE_mlesac_vicon, RMSE_mlesac_gt, RMSE_mlesac_lowpass, RMSE_mlesac_smooth])

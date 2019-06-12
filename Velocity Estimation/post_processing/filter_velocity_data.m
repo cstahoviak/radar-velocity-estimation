@@ -210,6 +210,8 @@ xlim([0 twist_time_second(end)]);
 subplot(3,1,3); plot(twist_time_second,smoothed_vz);
 xlim([0 twist_time_second(end)]);
 
+return;
+
 span = 10;
 smoothed_vx = smooth(twist_linear_body(:,1),span,method);
 smoothed_vy = smooth(twist_linear_body(:,2),span,method);

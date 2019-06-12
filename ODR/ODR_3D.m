@@ -12,7 +12,7 @@ p = size(beta0,1);
 m = size(delta0,1)/Ntargets;
 
 % [ S, T ] = ODR_getScalingMatrices();
-S = 10*eye(p);          % s scaling matrix - 10 empirically chosen
+S = 5*eye(p);          % s scaling matrix - 10 empirically chosen
 T = eye(Ntargets*m);    % t scaling matrix
 alpha = 0.001;          % Lagrange multiplier
 

@@ -32,8 +32,8 @@ t = maxDistance;    % threshold to declare inlier/outlier
 type = 'points';
 
 % number of simulated targets
-Ninliers = 75;
-Noutliers = 25;
+Ninliers = 70;
+Noutliers = 35;
 
 sigma_vr = 0.044;               % [m/s]
 load('1642_azimuth_bins.mat')
@@ -110,18 +110,25 @@ disp([velocity, model_odr])
 % get doppler_mlesac (OLS) estimate
 data = [radar_doppler, radar_azimuth, radar_elevation];
 tic
-[ model_ols, inlier_idx2, scores ] = mlesac_3D( data, n, p, t, sigma_vr);
+[ model_mlesac2, inlier_idx2, scores ] = mlesac_3D( data, n, p, t, sigma_vr);
 toc
 Ninliears2 = sum(inlier_idx2)
 fprintf('OLS Profile Estimation\n');
-disp([velocity, model_ols])
+disp([velocity, model_mlesac2])
 fprintf('doppler MLESAC Number of Inliers\n');
 disp(Ninliears2);
 
+% get OLS solution
+f = @(model) doppler_residual( model, radar_azimuth, ...
+    radar_elevation,  radar_doppler);
+x0 = ones(size(velocity,1),1);
+model_ols = lsqnonlin(f,x0);
+
 % RMSE_bruteforce     = sqrt(mean((velocity - model_bruteforce).^2))
-RMSE_ols_3D         = sqrt(mean((velocity - model_ols).^2))
-RMSE_mlesac_3D      = sqrt(mean((velocity - model_mlesac).^2))
-RMSE_odr_3D         = sqrt(mean((velocity - model_odr).^2))
+RMSE_ols     = sqrt(mean((velocity - model_ols).^2))
+RMSE_mlesac  = sqrt(mean((velocity - model_mlesac).^2))
+RMSE_mlesac2 = sqrt(mean((velocity - model_mlesac2).^2))
+RMSE_odr     = sqrt(mean((velocity - model_odr).^2))
 
 %% Plot Results
 
