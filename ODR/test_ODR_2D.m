@@ -35,8 +35,14 @@ Ninliers = 75;
 Noutliers = 10;
 
 sigma_vr = 0.044;     % [m/s]
-load('radar_angle_bins.mat')
+load('1642_azimuth_bins.mat')
 % sigma_theta = 0.0413;
+
+% define ODR error variance ratios
+d = sigma_vr/sigma_theta;
+
+converge_thres = 0.0005;
+max_iter = 50;
 
 %% Generate Simulated Radar Measurements
 
@@ -89,9 +95,9 @@ disp(Ninliers);
 % get Orthogonal Distance Regression (ODR) estimate - MLESAC seed
 weights = (1/sigma_vr)*ones(Ninliers,1);
 delta = normrnd(0,sigma_theta,[Ninliers,1]);
-d = ones(Ninliers,1)*(sigma_vr/sigma_theta);    % error variance ratio
-[ model_odr, beta ] = ODR( radar_azimuth(inlier_idx)', ...
-    radar_doppler(inlier_idx)', d, model_mlesac, delta, weights );
+data = [radar_doppler(inlier_idx), radar_azimuth(inlier_idx), zeros(Ninliers,1)];
+[ model_odr, beta ] = ODR_v1( data, d, model_mlesac, delta, weights, ...
+    converge_thres, max_iter);
 fprintf('ODR Velocity Profile Estimation - MLESAC seed\n');
 disp(model_odr)
 
@@ -100,18 +106,18 @@ data = [radar_doppler, radar_azimuth];
 tic
 [ model_mlesac2, inlier_idx2, scores ] = mlesac( data, n, p, t, sigma_vr);
 toc
-Ninliears2 = sum(inlier_idx2)
+Ninliers2 = sum(inlier_idx2)
 fprintf('doppler MLESAC Velocity Profile Estimation\n');
 disp(model_mlesac2)
 fprintf('doppler MLESAC Number of Inliers\n');
-disp(Ninliears2);
+disp(Ninliers2);
 
 % get Orthogonal Distance Regression (ODR) estimate - doppler_mlesac seed
-weights = (1/sigma_vr)*ones(Ninliears2,1);
-delta = normrnd(0,sigma_theta,[Ninliears2,1]);
-d = ones(Ninliears2,1)*(sigma_vr/sigma_theta);    % error variance ratio
-[ model_odr2, beta2 ] = ODR( radar_azimuth(inlier_idx2)', ...
-    radar_doppler(inlier_idx2)', d, model_mlesac2, delta, weights );
+weights = (1/sigma_vr)*ones(Ninliers2,1);
+delta = normrnd(0,sigma_theta,[Ninliers2,1]);
+data = [radar_doppler(inlier_idx2), radar_azimuth(inlier_idx2), zeros(Ninliers2,1)];
+[ model_odr2, beta2 ] = ODR_v1( data, d, model_mlesac2, delta, weights, ...
+    converge_thres, max_iter);
 fprintf('ODR Velocity Profile Estimation - doppler_mlesac seed\n');
 disp(model_odr2)
 

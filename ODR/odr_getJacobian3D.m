@@ -18,7 +18,7 @@ function [ G, V, D ] = odr_getJacobian3D( X, delta, beta, weights, d )
 % d - error variance ratio vector - 
 %   [sigma_eps/sigma_dtheta; sigma_eps/sigma_dphi] (m x 1)
 
-Ntargets = size(X,1)/2;   % X is a row vector of angle values
+Ntargets = size(X,1)/2;
 p = size(beta,1);
 m = size(delta,1)/Ntargets;
 

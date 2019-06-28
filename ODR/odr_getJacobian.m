@@ -15,7 +15,7 @@ function [ G, V, D ] = odr_getJacobian( X, delta, beta, weights, d )
 
 % d - error variance ratio sigma_epsilon/sigma_delta
 
-Ntargets = size(X,2);   % X is a row vector of angle values
+Ntargets = size(X,1);   % X is a row vector of angle values
 p = size(beta,1);
 
 % initialize
@@ -30,7 +30,7 @@ end
 
 G = diag(weights) * G;
 V = diag(weights) * V;
-D = diag(weights .* d);
+D = diag(weights  * d);
 
 end
 

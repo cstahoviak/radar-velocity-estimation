@@ -19,7 +19,7 @@ format compact
 %% Define MLESAC parameters
 
 % define MLESAC parameters
-sampleSize = 3;                 % problem uniquely-determined for 2 targets
+sampleSize = 3;                 % problem uniquely-determined for 3 targets
 maxDistance = 0.15;          % only roughly tuned at this point
 
 n = sampleSize;     % minimum number of points needed to fit the model
@@ -44,6 +44,7 @@ sigma_phi = sigma_theta;        % [rad]
 d = [sigma_vr/sigma_theta; sigma_vr/sigma_phi];
 
 converge_thres = 0.0005;
+max_iter = 50;
 
 %% Generate Simulated Radar Measurements
 
@@ -100,9 +101,10 @@ disp(Ninliers);
 tic
 weights = (1/sigma_vr)*ones(Ninliers,1);
 delta = normrnd(0,sigma_theta,[2*Ninliers,1]);
-[ model_odr, beta, cov, odr_iter ] = ODR_3D( radar_doppler(inlier_idx)', ...
-    radar_azimuth(inlier_idx)', radar_elevation(inlier_idx)', ...
-    d, model_mlesac, delta, weights, converge_thres );
+data = [radar_doppler(inlier_idx), radar_azimuth(inlier_idx), ...
+    radar_elevation(inlier_idx)];
+[ model_odr, beta, cov, odr_iter ] = ODR_v1( data, d, model_mlesac, ...
+    delta, weights, converge_thres, max_iter );
 toc
 fprintf('ODR Velocity Profile Estimation - MLESAC seed\n');
 disp([velocity, model_odr])
