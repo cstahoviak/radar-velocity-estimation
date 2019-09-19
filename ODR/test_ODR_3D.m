@@ -39,12 +39,14 @@ sigma_vr = 0.044;               % [m/s]
 load('1642_azimuth_bins.mat')
 % sigma_theta = 0.0413;           % [rad]
 sigma_phi = sigma_theta;        % [rad]
+sigma = [sigma_theta; sigma_phi];
 
 % define ODR error variance ratios
 d = [sigma_vr/sigma_theta; sigma_vr/sigma_phi];
 
 converge_thres = 0.0005;
 max_iter = 50;
+get_covar = false;
 
 %% Generate Simulated Radar Measurements
 
@@ -55,7 +57,7 @@ max_iter = 50;
 min_vel = -2.5;        % [m/s]
 max_vel = 2.5;      % [m/s]
 velocity = (max_vel-min_vel).*rand(3,1) + min_vel
-velocity = [-1.60, -2.10, 0.90]';
+% velocity = [-1.60, -2.10, 0.90]';
 
 % create noisy simulated radar measurements
 [~, ~, ~, inlier_doppler, inlier_azimuth, inlier_elevation] = ...
@@ -86,51 +88,68 @@ radar_data = [(1:Ntargets)', radar_doppler, radar_azimuth, radar_elevation];
 % fprintf('Brute-Force  Velocity Profile Estimation\n');
 % disp([velocity, model_bruteforce])
 
-% get MLESAC (Max. Likelihood RANSAC) model and inlier set
+% get Matlab MLESAC (Max. Likelihood RANSAC) model and inlier set
 tic
 [ model_mlesac, inlier_idx ] = MLESAC_3D( radar_doppler', ...
     radar_azimuth', radar_elevation', sampleSize, maxDistance );
-toc
+time_mlesac = toc;
 Ninliers = sum(inlier_idx);
-fprintf('3D MLESAC Velocity Profile Estimation\n');
-disp([velocity, model_mlesac])
-fprintf('3D MLESAC Number of Inliers\n');
-disp(Ninliers);
 
 % get 3D Orthogonal Distance Regression (ODR) estimate - MLESAC seed
 tic
 weights = (1/sigma_vr)*ones(Ninliers,1);
-delta = normrnd(0,sigma_theta,[2*Ninliers,1]);
 data = [radar_doppler(inlier_idx), radar_azimuth(inlier_idx), ...
     radar_elevation(inlier_idx)];
 [ model_odr, beta, cov, odr_iter ] = ODR_v1( data, d, model_mlesac, ...
-    delta, weights, converge_thres, max_iter );
-toc
-fprintf('ODR Velocity Profile Estimation - MLESAC seed\n');
-disp([velocity, model_odr])
+    sigma, weights, converge_thres, max_iter, get_covar );
+time_odr = toc;
 
 % get doppler_mlesac (OLS) estimate
-data = [radar_doppler, radar_azimuth, radar_elevation];
-tic
-[ model_mlesac2, inlier_idx2, scores ] = mlesac_3D( data, n, p, t, sigma_vr);
-toc
-Ninliears2 = sum(inlier_idx2)
-fprintf('OLS Profile Estimation\n');
-disp([velocity, model_mlesac2])
-fprintf('doppler MLESAC Number of Inliers\n');
-disp(Ninliears2);
+% NOTE: Lost the mlesac_3d() fcn when my computer died; will have to
+% re-write eventually
+% data = [radar_doppler, radar_azimuth, radar_elevation];
+% tic
+% [ model_mlesac2, inlier_idx2, scores ] = mlesac_3D( data, n, p, t, sigma_vr);
+% time_mlesac2 = toc;
+% Ninliears2 = sum(inlier_idx2)
 
 % get OLS solution
 f = @(model) doppler_residual( model, radar_azimuth, ...
     radar_elevation,  radar_doppler);
 x0 = ones(size(velocity,1),1);
-model_ols = lsqnonlin(f,x0);
+tic
+model_lsqnonlin = lsqnonlin(f,x0);
+time_ols = toc;
 
 % RMSE_bruteforce     = sqrt(mean((velocity - model_bruteforce).^2))
-RMSE_ols     = sqrt(mean((velocity - model_ols).^2))
-RMSE_mlesac  = sqrt(mean((velocity - model_mlesac).^2))
-RMSE_mlesac2 = sqrt(mean((velocity - model_mlesac2).^2))
-RMSE_odr     = sqrt(mean((velocity - model_odr).^2))
+RMSE_lsqnonlin = sqrt(mean((velocity - model_lsqnonlin).^2));
+RMSE_mlesac    = sqrt(mean((velocity - model_mlesac).^2));
+RMSE_odr       = sqrt(mean((velocity - model_odr).^2));
+
+%% Algorithm Evaluation
+
+fprintf('Algorithm Evaluation - Parameter Estimate\n\n');
+fprintf('Matlab MLESAC\t OLS\t\t ODR_v1\n');
+fprintf('%.4f\t\t %.4f \t %.4f\n', model_mlesac(1), model_lsqnonlin(1), ...
+    model_odr(1));
+fprintf('%.4f\t\t %.4f \t %.4f\n', model_mlesac(2), model_lsqnonlin(2), ...
+    model_odr(2));
+fprintf('%.4f\t\t %.4f \t %.4f\n', model_mlesac(3), model_lsqnonlin(3), ...
+    model_odr(3));
+
+fprintf('\nAlgorithm Evaluation - MLESAC Inlier Set\n');
+fprintf('Matlab MLESAC =\t %d\n', Ninliers);
+
+fprintf('\nAlgorithm Evaluation - RMSE\n');
+fprintf('Matlab MLESAC\t= %.4f\n', RMSE_mlesac);
+fprintf('OLS\t\t= %.4f\n', RMSE_lsqnonlin);
+fprintf('ODR_v1\t\t= %.4f\n', RMSE_odr);
+
+fprintf('\nAlgorithm Evaluation - Execution Time\n');
+fprintf('Matlab MLESAC\t= %.4f\n', 1e3*time_mlesac);
+fprintf('OLS\t\t= %.4f\n', 1e3*time_ols);
+fprintf('ODR_v1\t\t= %.4f\n', 1e3*time_odr);
+return;
 
 %% Plot Results
 
@@ -151,7 +170,7 @@ title({'Othrogonal Distance Regression (ODR) - MLESAC Seed', ...
 
 figure(2)
 quiver3(0,0,0,velocity(1),velocity(2),velocity(3),'--'); hold on;
-quiver3(0,0,0,model_ols(1),model_ols(2),model_ols(3));
+quiver3(0,0,0,model_lsqnonlin(1),model_lsqnonlin(2),model_lsqnonlin(3));
 quiver3(0,0,0,model_mlesac(1),model_mlesac(2),model_mlesac(3));
 quiver3(0,0,0,model_odr(1),model_odr(2),model_odr(3));
 hdl = legend('truth','OLS','MLESAC', ...
@@ -190,7 +209,7 @@ profile_odr = simulateRadarDoppler3D(model_odr, azimuth, elevation, ...
     zeros(N,1), zeros(2*N,1));
 
 % get ODR velocity profile
-profile_ols = simulateRadarDoppler3D(model_ols, azimuth, elevation, ...
+profile_ols = simulateRadarDoppler3D(model_lsqnonlin, azimuth, elevation, ...
     zeros(N,1), zeros(2*N,1));
 
 figure(4)
@@ -233,7 +252,7 @@ for i=1:N
     
     doppler_true = simulateRadarDoppler3D(velocity, az, elevation, ...
         zeros(N,1), zeros(2*N,1));
-    doppler_ols = simulateRadarDoppler3D(model_ols, az, elevation, ...
+    doppler_ols = simulateRadarDoppler3D(model_lsqnonlin, az, elevation, ...
         zeros(N,1), zeros(2*N,1));
     doppler_odr = simulateRadarDoppler3D(model_odr, az, elevation, ...
         zeros(N,1), zeros(2*N,1));

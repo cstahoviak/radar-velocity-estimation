@@ -1,4 +1,4 @@
-function [ G, V, D ] = odr_getJacobian3D( X, delta, beta, weights, d )
+function [ G, V ] = odr_getJacobian3D( X, delta, beta, weights )
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -15,9 +15,6 @@ function [ G, V, D ] = odr_getJacobian3D( X, delta, beta, weights, d )
 % D - Jacobian matrix of delta wrt/ delta and is a diagonal matrix,
 %     (nm x nm)
 
-% d - error variance ratio vector - 
-%   [sigma_eps/sigma_dtheta; sigma_eps/sigma_dphi] (m x 1)
-
 Ntargets = size(X,1)/2;
 p = size(beta,1);
 m = size(delta,1)/Ntargets;
@@ -25,8 +22,10 @@ m = size(delta,1)/Ntargets;
 theta = X(1:Ntargets);
 phi   = X(Ntargets+1:2*Ntargets);
 
-delta_theta = delta(1:Ntargets);
-delta_phi   = delta(Ntargets+1:2*Ntargets);
+% "un-interleave" delta vector into (Ntargets x m) matrix
+delta = reshape(delta,[m,Ntargets])';
+delta_theta = delta(:,1);
+delta_phi   = delta(:,2);
 
 % defined to simplify the following calculations
 x1 = theta + delta_theta;
@@ -45,18 +44,8 @@ for i=1:Ntargets
           beta(3)*cos(x2(i))];
 end
 
-% multiply by target weights
+% multiply G by target weights.. maybe do this in for loop?
 G = diag(weights) * G;
-
-% construct weighted block-diagonal matrix D
-D = diag(d);
-Drep = repmat(D, 1, Ntargets);
-% Dcell = mat2cell(Drep, size(D,1), repmat(size(D,2),1,Ntargets));
-Dcell = mat2cell(Drep, m, repmat(m,1,Ntargets));
-Dblk = blkdiag(Dcell{:});
-
-weights_diag = diag(repelem(weights,m));
-D = weights_diag*Dblk;
 
 end
 

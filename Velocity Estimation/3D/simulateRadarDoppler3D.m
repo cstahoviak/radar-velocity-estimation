@@ -14,11 +14,15 @@ function [ radar_doppler] = simulateRadarDoppler3D( velocity_body, ...
 % radar is aligned with the body-frame axes of the quad. Thus no transform
 % is required.
 
-Ntargets = size(radar_azimuth,1);  % column vector
-radar_doppler = zeros(Ntargets,1);
+Ntargets = size(radar_azimuth,1);
+m = size(delta,1)/Ntargets;
 
-delta_theta = delta(1:Ntargets);
-delta_phi   = delta(Ntargets+1:2*Ntargets);
+radar_doppler = zeros(Ntargets,1);  % column vector
+
+% "un-interleave" delta vector into (Ntargets x m) matrix
+delta = reshape(delta,[m,Ntargets])';
+delta_theta = delta(:,1);
+delta_phi   = delta(:,2);
 
 for i=1:Ntargets
     

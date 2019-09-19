@@ -1,11 +1,21 @@
 function [ model, beta, cov_beta, iter ] = ODR_v1( data, d, beta0, ...
-    delta0, weights, converge_thres, max_iter )
+    sigma, weights, converge_thres, max_iter, get_covar )
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
+
+% d - error variance ratio vector - 
+%   [sigma_eps/sigma_dtheta; sigma_eps/sigma_dphi] (m x 1)
 
 %%% TODO:
 % 1. fine-tune Lagrange multiplier alpha
 % 2. How to define scaling matrices S and T - ODR Guidebook??
+
+% 3. Only calculate D once per estimate, NOT once per iteration
+% 4. Update how the delta vector is defined:
+%       old: delta = [dtheta_1, dtheta_2, ..., dtheta_n, dphi_1, dphi_2,..., dphi_n]
+%       new: delta = [dtheta_1, dphi_1, dtheta_2, dphi_2, ..., dtheta_n, dphi_n]
+% 5. Verify weighting of Jacobian block-elements - Am I multiplying the
+%    weights in the correct way?
 
 % unpack data (into column vectors)
 radar_doppler   = data(:,1);
@@ -20,6 +30,18 @@ m = size(d,1);
 S = 5*eye(p);           % s scaling matrix - 10 empirically chosen
 T = eye(Ntargets*m);    % t scaling matrix
 alpha = 0.001;          % Lagrange multiplier
+
+% init delta vector - "interleaved" vector
+delta0 = [normrnd(0,sigma(1),[1,Ntargets]); normrnd(0,sigma(2),[1,Ntargets])];
+delta0 = delta0(:);
+
+% construct weighted block-diagonal matrix D
+D = diag(d);
+Drep = repmat(D, 1, Ntargets);
+Dcell = mat2cell(Drep, m, repmat(m,1,Ntargets));
+Dblk = blkdiag(Dcell{:});
+weights_diag = diag(repelem(weights,m));
+D = weights_diag*Dblk;
 
 % initialize
 beta(:,1) = beta0;
@@ -38,15 +60,14 @@ while norm(s) > converge_thres
         [ G, V, D ] = odr_getJacobian( radar_azimuth, delta, ...
             beta(:,k), weights, d );
     elseif p == 3
-        [ G, V, D ] = odr_getJacobian3D( [radar_azimuth; radar_elevation], ...
-            delta, beta(:,k), weights, d );
+        [ G, V ] = odr_getJacobian3D( [radar_azimuth; radar_elevation], ...
+            delta, beta(:,k), weights );
     else
         error('initial guess must be a 2D or 3D vector')
     end
     
 %     disp('G ='); disp(G)
 %     disp('V ='); disp(V)
-%     disp('D ='); disp(D)
     
     % defined to simplify the notation in objectiveFunc
     P = V'*V + D^2 + alpha*T^2;
@@ -87,7 +108,11 @@ while norm(s) > converge_thres
 end 
 
 model = beta(:,end);
-cov_beta = odr_getCovariance( G, V, D, eps, delta, weights, d );
+if get_covar
+    cov_beta = odr_getCovariance( G, V, D, eps, delta, weights, d );
+else
+    cov_beta = NaN*ones(p);
+end
 iter = k-1;
 
 end

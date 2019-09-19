@@ -2,6 +2,10 @@ function [ cov_beta ] = odr_getCovariance( G, V, D, eps, delta, weights, d )
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
 
+%%% TODO:
+% 1. 3D covariance calculation needs to be updated to reflect reworked
+%    delta vector - NOT done yet
+
 n = size(G,1);      % number of targets in the scan
 p = size(G,2);      % dimension of the model parameters
 m = size(d,1);      % dimension of 'explanatory variable' vector
