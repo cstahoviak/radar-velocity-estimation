@@ -19,7 +19,7 @@ format compact
 %% Define MLESAC parameters
 
 % define MLESAC parameters
-sampleSize = 3;                 % problem uniquely-determined for 3 targets
+sampleSize = 3;              % problem uniquely-determined for 3 targets
 maxDistance = 0.15;          % only roughly tuned at this point
 
 n = sampleSize;     % minimum number of points needed to fit the model
@@ -58,8 +58,8 @@ Noutliers = 35;
 % simulated 'true' platform velocity
 min_vel = -2.5;        % [m/s]
 max_vel = 2.5;      % [m/s]
-velocity = (max_vel-min_vel).*rand(3,1) + min_vel;
-% velocity = [-1.60, -2.10, 0.90]';
+% velocity = round((max_vel-min_vel).*rand(3,1) + min_vel,2);
+velocity = [-1.60, -2.10, 0.90]';
 
 % create noisy simulated radar measurements
 [~, ~, ~, inlier_doppler, inlier_azimuth, inlier_elevation] = ...
@@ -166,8 +166,6 @@ fprintf('\nAlgorithm Evaluation - Misc.\n');
 fprintf('Matlab MLESAC Inliers\t= %d\n', Ninliers);
 fprintf('ODR_v1 Iterations\t= %d\n', odr_iter);
 
-return;
-
 %% Plot Results
 
 load('colors.mat')
@@ -182,35 +180,30 @@ plot([1, length(beta)], [velocity(3), velocity(3)], 'm--')
 xlim([1, length(beta)]);
 xlabel('iteration index','Interpreter','latex')
 ylabel('velocity [m/s]','Interpreter','latex')
-title({'Othrogonal Distance Regression (ODR) - MLESAC Seed', ...
-    'Velocity Estimate'},'Interpreter','latex')
+title({'Ego-Velocity Estimate','Othrogonal Distance Regression (ODR)'}, ...
+    'Interpreter','latex')
 
 figure(2)
 quiver3(0,0,0,velocity(1),velocity(2),velocity(3),'--'); hold on;
-quiver3(0,0,0,model_lsqnonlin(1),model_lsqnonlin(2),model_lsqnonlin(3));
 quiver3(0,0,0,model_mlesac(1),model_mlesac(2),model_mlesac(3));
+quiver3(0,0,0,model_lsqnonlin(1),model_lsqnonlin(2),model_lsqnonlin(3));
 quiver3(0,0,0,model_odr(1),model_odr(2),model_odr(3));
-hdl = legend('truth','OLS','MLESAC', ...
-    'ODR');
-% hdl = legend('truth','brute-force','MLESAC', 'doppler MLESAC', ...
-%     'ODR - MLESAC seed','ODR - doppler MLESAC seed');
+hdl = legend('truth','Matlab MLESAC','LSQNONLIN (OLS)','ODR');
 set(hdl,'Interpreter','latex','Location','best')
 xlabel('$v_x$ [m/s]','Interpreter','latex')
 ylabel('$v_y$ [m/s]','Interpreter','latex')
 ylabel('$v_z$ [m/s]','Interpreter','latex')
-title('Velocity Estimate Comparison','Interpreter','latex')
+title('Ego-Velocity Estimate Comparison','Interpreter','latex')
 % xlim([0 1]); ylim([0 1]);
 
 %% Plot velocity Profile
-
-load('colors.mat')
 
 azimuth = linspace(-pi/2,pi/2,100)';
 elevation = linspace(-pi/2,pi/2,100)';
 N = size(azimuth,1);
 
 % get true velocity profile
-profile = simulateRadarDoppler3D(velocity, azimuth, elevation, ...
+profile_truth = simulateRadarDoppler3D(velocity, azimuth, elevation, ...
     zeros(N,1), zeros(2*N,1));
 
 % get brute-force velocity profile
@@ -221,23 +214,22 @@ profile = simulateRadarDoppler3D(velocity, azimuth, elevation, ...
 profile_mlesac = simulateRadarDoppler3D(model_mlesac, azimuth, ...
     elevation, zeros(N,1), zeros(2*N,1));
 
+% get LSQNONLIN (OLS) velocity profile
+profile_ols = simulateRadarDoppler3D(model_lsqnonlin, azimuth, elevation, ...
+    zeros(N,1), zeros(2*N,1));
+
 % get ODR velocity profile
 profile_odr = simulateRadarDoppler3D(model_odr, azimuth, elevation, ...
     zeros(N,1), zeros(2*N,1));
 
-% get ODR velocity profile
-profile_ols = simulateRadarDoppler3D(model_lsqnonlin, azimuth, elevation, ...
-    zeros(N,1), zeros(2*N,1));
-
 figure(4)
-plot3(azimuth,elevation,profile,'Color',colors(1,:)); hold on
-% plot(angles,profile_bruteforce);
+plot3(azimuth,elevation,profile_truth,'Color',colors(1,:)); hold on
 plot3(azimuth,elevation,profile_ols,'--','Color',colors(2,:));
 plot3(azimuth,elevation,profile_odr,'--','Color',colors(3,:))
 scatter3(radar_azimuth(inlier_idx), radar_elevation(inlier_idx), ...
-    radar_doppler(inlier_idx))
+    radar_doppler(inlier_idx),15,[0.75,0,0.75],'filled')
 scatter3(radar_azimuth(~inlier_idx), radar_elevation(~inlier_idx), ...
-    radar_doppler(~inlier_idx),25,'kx')
+    radar_doppler(~inlier_idx),30,'kx')
 % scatter(outlier_azimuth, outlier_doppler,10,'kx')
 xlim([-pi/2, pi/2]);
 xlabel('azimuth, $\theta$ [rad]','Interpreter','latex')
@@ -251,8 +243,7 @@ hdl = legend('true velocity profile','OLS velocity profile', ...
 set(hdl,'Interpreter','latex')
 
 figure(5)
-plot3(azimuth,elevation,profile,'Color',colors(1,:)); hold on
-% plot(angles,profile_bruteforce);
+plot3(azimuth,elevation,profile_truth,'Color',colors(1,:)); hold on
 plot3(azimuth,elevation,profile_ols,'--','Color',colors(2,:));
 plot3(azimuth,elevation,profile_odr,'--','Color',colors(3,:))
 scatter3(radar_azimuth(inlier_idx), radar_elevation(inlier_idx), ...
@@ -288,8 +279,6 @@ xlabel('azimuth, $\theta$ [rad]','Interpreter','latex')
 ylabel('elevation, $\phi$ [rad]','Interpreter','latex')
 zlabel('radial velocity, $v_r$ [m/s]','Interpreter','latex')
 title('Cosine Velocity Profile','Interpreter','latex')
-% hdl = legend('true velocity profile','MLESAC velocity profile', ...
-%     'MLESAC inliers','MLESAC outliers');
 hdl = legend('true velocity profile','OLS velocity profile', ...
     'ODR velocity profile','MLESAC inliers','MLESAC outliers');
 set(hdl,'Interpreter','latex')

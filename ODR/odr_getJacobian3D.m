@@ -36,7 +36,7 @@ G = zeros(Ntargets,p);
 V = zeros(Ntargets,Ntargets*m);
 
 for i=1:Ntargets
-    G(i,1:p) = [cos(x1(i))*cos(x2(i)), sin(x1(i))*cos(x2(i)), sin(x2(i))];
+    G(i,1:p) = weights(i)*[cos(x1(i))*cos(x2(i)), sin(x1(i))*cos(x2(i)), sin(x2(i))];
           
     V(i,2*i-1:2*i) = weights(i)* ...
         [-beta(1)*sin(x1(i))*cos(x2(i)) + beta(2)*cos(x1(i))*cos(x2(i)), ...
@@ -44,8 +44,8 @@ for i=1:Ntargets
           beta(3)*cos(x2(i))];
 end
 
-% multiply G by target weights.. maybe do this in for loop?
-G = diag(weights) * G;
+% multiply G by target weights - faster as part of for loop
+% G = diag(weights) * G;
 
 end
 

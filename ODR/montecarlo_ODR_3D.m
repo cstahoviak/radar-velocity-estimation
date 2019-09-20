@@ -2,13 +2,15 @@
 
 %%% Filename:   montecarlo_ODR_3D.m
 %%% Author:     Carl Stahoviak
-%%% Created:    05/15/2019  
+%%% Created:    09/19/2019  
 
 clear;
 clc;
 close all;
 
 format compact
+
+opts = optimset('display','off');   % for LSQNONLIN
 
 %% Define MLESAC parameters
 
@@ -41,7 +43,7 @@ get_covar = false;
 type = 'points';
 
 % number of simulated targets
-Ninliers = 70;
+Ninliers = 50;
 Noutliers = 35;
 Ntargets = Ninliers + Noutliers;
 
@@ -52,7 +54,7 @@ sigma_vr_outlier = 1.5;     % [m/s]
 
 %% Monte Carlo Study - Matlab MLESAC vs. LSQNONLIN vs. ODR_V1
 
-mc_iter = 100;
+mc_iter = 250;
 
 rmse = NaN*ones(mc_iter,3);         % [mlesac, ols, odr]
 time = NaN*ones(mc_iter,3);         % [mlesac, ols, odr]
@@ -93,7 +95,7 @@ for i=1:mc_iter
         radar_elevation(inlier_idx), radar_doppler(inlier_idx));
     x0 = ones(size(velocity,1),1);
     tic
-    model_lsqnonlin = lsqnonlin(f,x0);
+    model_lsqnonlin = lsqnonlin(f,x0,[],[],opts);
     time(i,2) = toc;
     
     % get 3D Orthogonal Distance Regression (ODR) estimate
@@ -115,11 +117,23 @@ time = 1e3*time;
 
 %% Compute Statistics
 
-rmse_mean  = mean(rmse,1)'
-rmse_sigma = std(rmse,1)'
+rmse_mean  = mean(rmse,1)';
+rmse_sigma = std(rmse,1)';
 
-time_mean  = mean(time,1)'
-time_sigma = std(time,1)'
+time_mean  = mean(time,1)';
+time_sigma = std(time,1)';
+
+fprintf('\nAlgorithm Evaluation - Ego-Velocity RMSE\n')
+fprintf('\t\t mean\t std. dev.\n')
+fprintf('Matlab MLESAC\t %.4f\t %.4f\n', rmse_mean(1), rmse_sigma(1))
+fprintf('LSQNONLIN (OLS)\t %.4f\t %.4f\n', rmse_mean(2), rmse_sigma(2))
+fprintf('ODR_v1\t\t %.4f\t %.4f\n', rmse_mean(3), rmse_sigma(3))
+
+fprintf('\nAlgorithm Evaluation - Execution Time\n')
+fprintf('\t\t mean\t\t std. dev.\n')
+fprintf('Matlab MLESAC\t %.4f\t\t %.4f\n', time_mean(1), time_sigma(1))
+fprintf('LSQNONLIN (OLS)\t %.4f\t\t %.4f\n', time_mean(2), time_sigma(2))
+fprintf('ODR_v1\t\t %.4f\t %.4f\n', time_mean(3), time_sigma(3))
 
 %% Plot Results
 
