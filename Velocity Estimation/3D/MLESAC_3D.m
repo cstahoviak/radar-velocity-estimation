@@ -10,9 +10,7 @@ function [ model, inlier_idx ] = MLESAC_3D( radar_doppler, radar_azimuth, ...
 data = [radar_doppler' radar_azimuth', radar_elevation'];
 Ntargets = size(data,1);
 
-[ numAngleBins, ~ ] = getNumAngleBins( radar_azimuth );
-
-if (Ntargets >= 5) %&& (numAngleBins > 1)
+if (Ntargets >= 5)
     % ransac requires a minimum of 5 targets to operate on
     [ model, inlier_idx ] = ransac(data, @MLESAC_fitFcn, @MLESAC_distFcn, ...
         sampleSize, maxDistance, 'ValidateModelFcn', @validateMSS);

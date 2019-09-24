@@ -1,4 +1,4 @@
-function [ G, V, D ] = odr_getJacobian( X, delta, beta, weights, d )
+function [ G, V ] = odr_getJacobian( X, delta, beta, weights )
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -21,16 +21,14 @@ p = size(beta,1);
 % initialize
 G = zeros(Ntargets,p);
 V = zeros(Ntargets,Ntargets);
-D = zeros(Ntargets,Ntargets);
 
 for i=1:Ntargets
-    G(i,:) = [cos(X(i) + delta(i)), sin(X(i) + delta(i))];
-    V(i,i) = -beta(1)*sin(X(i) + delta(i)) + beta(2)*cos(X(i) + delta(i));
+    G(i,:) = weights(i)*[cos(X(i) + delta(i)), sin(X(i) + delta(i))];
+    V(i,i) = weights(i)*(-beta(1)*sin(X(i) + delta(i)) + beta(2)*cos(X(i) + delta(i)));
 end
 
-G = diag(weights) * G;
-V = diag(weights) * V;
-D = diag(weights  * d);
+% G = diag(weights) * G;
+% V = diag(weights) * V;
 
 end
 

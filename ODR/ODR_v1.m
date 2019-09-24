@@ -31,17 +31,29 @@ S = 5*eye(p);           % s scaling matrix - 10 empirically chosen
 T = eye(Ntargets*m);    % t scaling matrix
 alpha = 0.001;          % Lagrange multiplier
 
-% init delta vector - "interleaved" vector
-delta0 = [normrnd(0,sigma(1),[1,Ntargets]); normrnd(0,sigma(2),[1,Ntargets])];
-delta0 = delta0(:);
+if p == 2
+    % init delta vector
+    delta0 = normrnd(0,sigma,[Ntargets,1]);
+    
+    % construct weighted diagonal matrix D
+    D = diag(weights * d);
+    
+elseif p == 3
+    % init delta vector - "interleaved" vector
+    delta0 = [normrnd(0,sigma(1),[1,Ntargets]); normrnd(0,sigma(2),[1,Ntargets])];
+    delta0 = delta0(:);
 
-% construct weighted block-diagonal matrix D
-D = diag(d);
-Drep = repmat(D, 1, Ntargets);
-Dcell = mat2cell(Drep, m, repmat(m,1,Ntargets));
-Dblk = blkdiag(Dcell{:});
-weights_diag = diag(repelem(weights,m));
-D = weights_diag*Dblk;
+    % construct weighted block-diagonal matrix D
+    D = diag(d);
+    Drep = repmat(D, 1, Ntargets);
+    Dcell = mat2cell(Drep, m, repmat(m,1,Ntargets));
+    Dblk = blkdiag(Dcell{:});
+    weights_diag = diag(repelem(weights,m));
+    D = weights_diag*Dblk;
+    
+else
+    error('initial guess must be a 2D or 3D vector')
+end
 
 % initialize
 beta(:,1) = beta0;
@@ -57,8 +69,8 @@ while norm(s) > converge_thres
     
     % get Jacobian matrices
     if p == 2
-        [ G, V, D ] = odr_getJacobian( radar_azimuth, delta, ...
-            beta(:,k), weights, d );
+        [ G, V ] = odr_getJacobian( radar_azimuth, delta, ...
+            beta(:,k), weights );
     elseif p == 3
         [ G, V ] = odr_getJacobian3D( [radar_azimuth; radar_elevation], ...
             delta, beta(:,k), weights );

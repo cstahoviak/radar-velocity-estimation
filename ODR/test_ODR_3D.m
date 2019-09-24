@@ -10,11 +10,7 @@ close all;
 
 format compact
 
-%%% TODO:
-% 1. Implement angle binning algorithm
-%   a. Define a look-up table of valid binned elevation locations
-%   b. map the truth elevation values to a binned angular value
-%   c. update value of sigma_phi with average angular resolution
+opts = optimset('display','off');   % for LSQNONLIN
 
 %% Define MLESAC parameters
 
@@ -63,14 +59,16 @@ velocity = [-1.60, -2.10, 0.90]';
 
 % create noisy simulated radar measurements
 [~, ~, ~, inlier_doppler, inlier_azimuth, inlier_elevation] = ...
-    getRadarMeasurements_3D( Ninliers, velocity, radar_angle_bins, sigma_vr, type );
+    getRadarMeasurements_3D( Ninliers, velocity, radar_angle_bins, ...
+    sigma_vr, sigma, type );
 
 %% Generate Outlier Data
 
 % create noisy simulated radar measurements
 sigma_vr_outlier = 1.5;     % [m/s]
 [~, ~, ~, outlier_doppler, outlier_azimuth, outlier_elevation] = ...
-    getRadarMeasurements_3D( Noutliers, velocity, radar_angle_bins, sigma_vr_outlier, type );
+    getRadarMeasurements_3D( Noutliers, velocity, radar_angle_bins, ...
+    sigma_vr_outlier, sigma, type );
 
 % combine inlier and outlier data sets
 Ntargets = Ninliers + Noutliers;
@@ -86,9 +84,7 @@ radar_data = [(1:Ntargets)', radar_doppler, radar_azimuth, radar_elevation];
 % tic
 % [ model_bruteforce, vhat_all ] = getBruteForceEstimate3D( radar_doppler', ...
 %     radar_azimuth', radar_elevation');
-% toc
-% fprintf('Brute-Force  Velocity Profile Estimation\n');
-% disp([velocity, model_bruteforce])
+% time_bruteforce = toc;
 
 % get Matlab MLESAC (Max. Likelihood RANSAC) model and inlier set
 tic
@@ -116,11 +112,11 @@ time_odr = toc;
 % Ninliears2 = sum(inlier_idx2)
 
 % get LSQNONLIN (OLS) solution
-f = @(model) doppler_residual( model, radar_azimuth(inlier_idx), ...
-    radar_elevation(inlier_idx), radar_doppler(inlier_idx));
+
+f = @(model) doppler_residual( model, data );
 x0 = ones(size(velocity,1),1);
 tic
-model_lsqnonlin = lsqnonlin(f,x0);
+model_lsqnonlin = lsqnonlin(f,x0,[],[],opts);
 time_lsqnonlin = toc;
 
 % get NLINFIT (OLS) solution

@@ -1,6 +1,6 @@
 function [true_doppler, true_azimuth, true_elevation, radar_doppler, ...
     radar_azimuth, radar_elevation] = getRadarMeasurements_3D( Ntargets, ...
-    model, radar_angle_bins, sigma_vr, type )
+    model, radar_angle_bins, sigma_vr, sigma, type )
 %UNTITLED2 Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -41,18 +41,22 @@ radar_elevation = zeros(Ntargets,1);
 
 % bin angular data
 for i=1:Ntargets
-    % bin azimuth value - could also add noise
+    % bin azimuth value
     [~, bin_idx] = min( abs(radar_angle_bins - true_azimuth(i)) );
     radar_azimuth(i) = radar_angle_bins(bin_idx);
     
-    % bin elevation value - could also add noise
+    % bin elevation value
     [~, bin_idx] = min( abs(radar_angle_bins - true_elevation(i)) );
     radar_elevation(i) = radar_angle_bins(bin_idx);
 end
 
 % define AGWN vector for doppler velocity measurements
 eps = normrnd(0,sigma_vr,[Ntargets,1]);
-% eps = ones(Ntargets,1)*sigma_vr;
+
+% define AGWN vector for azimuth/elevation measurements
+delta_theta = normrnd(0,sigma(1),[Ntargets,1]);
+delta_phi = normrnd(0,sigma(2),[Ntargets,1]);
+delta = [delta_theta; delta_phi];
 
 % get true radar doppler measurements
 true_doppler = simulateRadarDoppler3D(model, true_azimuth, ...
@@ -60,6 +64,6 @@ true_doppler = simulateRadarDoppler3D(model, true_azimuth, ...
 
 % get noisy radar doppler measurements
 radar_doppler =  simulateRadarDoppler3D(model, radar_azimuth, ...
-    radar_elevation, eps, zeros(2*Ntargets,1));
+    radar_elevation, eps, delta);
 
 end

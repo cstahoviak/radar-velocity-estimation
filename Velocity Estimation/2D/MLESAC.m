@@ -1,5 +1,5 @@
-function [ model, inlier_idx ] = MLESAC( radar_doppler, radar_angle, ...
-    sampleSize, maxDistance, conditionNum_thres)
+function [ model, inlier_idx ] = MLESAC( radar_doppler, radar_azimuth, ...
+    sampleSize, maxDistance)
 %UNTITLED7 Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -7,14 +7,10 @@ function [ model, inlier_idx ] = MLESAC( radar_doppler, radar_angle, ...
 
 % An mxn matrix. Each row represents a single data point
 % in the set to be modeled
-data = [radar_angle', radar_doppler'];
+data = [radar_azimuth', radar_doppler'];
 Ntargets = size(data,1);
 
-[ numAngleBins, ~ ] = getNumAngleBins( radar_angle );
-
-if numAngleBins == 1
-    disp('HERE');
-end
+[ numAngleBins, ~ ] = getNumAngleBins( radar_azimuth );
 
 if (Ntargets >= 5) && (numAngleBins > 1)
     % ransac requires a minimum of 5 targets to operate on
@@ -25,9 +21,11 @@ else
     % ransac requires a minimum of 5 targets to operate on. In the case
     % where there are less than 5 targets, we will use the brute force
     % estimation scheme in place of MLESAC
+    
+    % TODO: rm conditionNum_thres input from getBruteForceEstimate()
     warning('brute-force estimate used in place of MLESAC')
     [ model, ~ ] = getBruteForceEstimate( radar_doppler, ...
-        radar_angle, conditionNum_thres);
+        radar_azimuth, conditionNum_thres);
     inlier_idx = ones(Ntargets,1);
 end
 
