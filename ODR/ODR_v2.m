@@ -19,7 +19,8 @@ function [ model, beta, cov_beta, iter ] = ODR_v2( data, d, beta0, ...
 %       old: delta = [dtheta_1, dtheta_2, ..., dtheta_n, dphi_1, dphi_2,..., dphi_n]
 %       new: delta = [dtheta_1, dphi_1, dtheta_2, dphi_2, ..., dtheta_n, dphi_n]
 % 5. Verify weighting of Jacobian block-elements - Am I multiplying the
-%    weights in the correct way?
+%    weights in the correct way? - YES
+% 6. Investigate optimal value of scale factor for matrix S (currently 10)
 
 % unpack data (into column vectors)
 radar_doppler   = data(:,1);
@@ -31,7 +32,7 @@ p = size(beta0,1);
 m = size(d,1);
 
 % [ S, T ] = ODR_getScalingMatrices();
-S = 5*eye(p);           % s scaling matrix - 10 empirically chosen
+S = 10*eye(p);           % s scaling matrix - 10 empirically chosen
 T = eye(Ntargets*m);    % t scaling matrix
 alpha = 0.001;          % Lagrange multiplier
 alpha = 1;
@@ -42,10 +43,6 @@ if p == 2
     
     % construct weighted diagonal matrix D
     D = diag(weights * d);
-    
-    % construct E matrix - E = D^2 + alpha*T^2 (ODR-1987 Prop. 2.1)
-    E = diag((weights.^2)*d^2) + alpha*T^2;
-    Einv = inv(E);
     
 elseif p == 3
     % init delta vector - "interleaved" vector
@@ -64,7 +61,12 @@ else
     error('initial guess must be a 2D or 3D vector')
 end
 
+% construct E matrix - E = D^2 + alpha*T^2 (ODR-1987 Prop. 2.1)
+E = D^2 + alpha*T^2;
+Einv = inv(E);
+
 % initialize
+beta      = NaN*ones(p,max_iter); 
 beta(:,1) = beta0;
 delta     = delta0;
 s         = ones(p,1);
@@ -81,14 +83,11 @@ while norm(s) > converge_thres
         [ G, V, M ] = odr_getJacobian2D_v2( radar_azimuth, delta, ...
             beta(:,k), weights, E );
     elseif p == 3
-        [ G, V ] = odr_getJacobian3D_v2( [radar_azimuth; radar_elevation], ...
-            delta, beta(:,k), weights );
+        [ G, V, M ] = odr_getJacobian3D_v2( [radar_azimuth; radar_elevation], ...
+            delta, beta(:,k), weights, E );
     else
         error('initial guess must be a 2D or 3D vector')
     end
-    
-%     disp('G ='); disp(G)
-%     disp('V ='); disp(V)
     
     if p == 2
         doppler_predicted =  simulateRadarDoppler2D(beta(:,k), ...
@@ -123,9 +122,13 @@ while norm(s) > converge_thres
         disp('ODR_3D: max iterations reached')
         break
     end
-end 
+end
 
-model = beta(:,end);
+% remove NaN columns from beta matrix
+idx = ~isnan(beta(1,:));
+beta = beta(:,idx);
+
+model = beta(:,k);
 if get_covar
     cov_beta = odr_getCovariance( G, V, D, eps, delta, weights, d );
 else
@@ -142,8 +145,8 @@ if (size(G,1) ~= size(V,1)) && (size(G,1) ~= size(D,1)) ...
     
     error('objectiveFunc: matrix size mismatch')
     
-else    
-    f = M*G*s + M*(eps - V*Einv*D*delta);
+else
+    f = M*G*s + M*(eps - V*Einv*D*delta);  
     fval = norm(f);
 end
 

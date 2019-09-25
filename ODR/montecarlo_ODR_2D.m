@@ -39,7 +39,7 @@ get_covar = false;
 %% Define measurement parameters
 
 % number of simulated targets
-Ninliers = 80;
+Ninliers = 100;
 Noutliers = 35;
 Ntargets = Ninliers + Noutliers;
 
@@ -56,7 +56,7 @@ mc_iter = 250;
 rmse = NaN*ones(mc_iter,4);         % [mlesac, ols, odr_v1, odr_v2]
 time = NaN*ones(mc_iter,4);         % [mlesac, ols, odr_v1, odr_v2]
 inliers = NaN*ones(mc_iter,1);
-odr_iter = NaN*ones(mc_iter,1);
+odr_iter = NaN*ones(mc_iter,2);
 
 for i=1:mc_iter
     
@@ -89,13 +89,13 @@ for i=1:mc_iter
     data = [radar_doppler(inlier_idx), radar_azimuth(inlier_idx), ...
         zeros(inliers(i),1)];
     tic
-    [ model_odr, ~, ~, ~ ] = ODR_v1( data, d, model_mlesac, ...
+    [ model_odr, ~, ~, iter ] = ODR_v1( data, d, model_mlesac, ...
         sigma(2), weights, converge_thres, max_iter, get_covar );
     time(i,3) = toc;
     
     % get Orthogonal Distance Regression (ODR v2) estimate - MLESAC seed
     tic
-    [ model_odr2, ~, ~, ~ ] = ODR_v2( data, d, model_mlesac, ...
+    [ model_odr2, ~, ~, iter2 ] = ODR_v2( data, d, model_mlesac, ...
         sigma(2), weights, converge_thres, max_iter, get_covar );
     time(i,4) = toc;
     
@@ -109,7 +109,9 @@ for i=1:mc_iter
     rmse(i,1) = sqrt(mean((velocity - model_mlesac).^2));
     rmse(i,2) = sqrt(mean((velocity - model_lsqnonlin).^2));
     rmse(i,3) = sqrt(mean((velocity - model_odr).^2)); 
-    rmse(i,4) = sqrt(mean((velocity - model_odr2).^2)); 
+    rmse(i,4) = sqrt(mean((velocity - model_odr2).^2));
+    
+    odr_iter(i,:) = [iter, iter2];
 end
 
 % convert time to milliseconds
@@ -119,28 +121,37 @@ time = 1e3*time;
 
 rmse_stats = [mean(rmse,1)', std(rmse,1)', min(rmse)', max(rmse)'];
 time_stats = [mean(time,1)', std(time,1)', min(time)', max(time)'];
+iter_stats = [mean(odr_iter,1)', std(odr_iter,1)', min(odr_iter)', ...
+    max(odr_iter)', mode(odr_iter,1)'];
 
 fprintf('\nAlgorithm Evaluation - Ego-Velocity RMSE [m/s]\n')
 fprintf('\t\t mean\t std\t min\t max\n')
 fprintf('Matlab MLESAC\t %.4f\t %.4f\t %.4f\t %.4f\n',rmse_stats(1,1), ...
     rmse_stats(1,2),rmse_stats(1,3),rmse_stats(1,4))
-fprintf('LSQNONLIN (OLS)\t %.4f\t %.4f\t %.4f\t %.4f\n',rmse_stats(2,1), ...
+fprintf('LSQNONLIN\t %.4f\t %.4f\t %.4f\t %.4f\n',rmse_stats(2,1), ...
     rmse_stats(2,2),rmse_stats(2,3),rmse_stats(2,4))
-fprintf('ODR v1\t\t %.4f\t %.4f\t %.4f\t %.4f\n',rmse_stats(3,1), ...
+fprintf('2D ODR_v1\t %.4f\t %.4f\t %.4f\t %.4f\n',rmse_stats(3,1), ...
     rmse_stats(3,2),rmse_stats(3,3),rmse_stats(3,4))
-fprintf('ODR v2\t\t %.4f\t %.4f\t %.4f\t %.4f\n',rmse_stats(4,1), ...
+fprintf('2D ODR_v2\t %.4f\t %.4f\t %.4f\t %.4f\n',rmse_stats(4,1), ...
     rmse_stats(4,2),rmse_stats(4,3),rmse_stats(4,4))
 
 fprintf('\nAlgorithm Evaluation - Execution Time [milliseconds]\n')
 fprintf('\t\t mean\t std\t min\t max\n')
 fprintf('Matlab MLESAC\t %.2f\t %.2f\t %.2f\t %.2f\n',time_stats(1,1), ...
     time_stats(1,2),time_stats(1,3),time_stats(1,4))
-fprintf('LSQNONLIN (OLS)\t %.2f\t %.2f\t %.2f\t %.2f\n',time_stats(2,1), ...
+fprintf('LSQNONLIN\t %.2f\t %.2f\t %.2f\t %.2f\n',time_stats(2,1), ...
     time_stats(2,2),time_stats(2,3),time_stats(2,4))
-fprintf('ODR v1\t\t %.2f\t %.2f\t %.2f\t %.2f\n',time_stats(3,1), ...
+fprintf('2D ODR_v1\t %.2f\t %.2f\t %.2f\t %.2f\n',time_stats(3,1), ...
     time_stats(3,2),time_stats(3,3),time_stats(3,4))
-fprintf('ODR v2\t\t %.2f\t %.2f\t %.2f\t %.2f\n',time_stats(4,1), ...
+fprintf('2D ODR_v2\t %.2f\t %.2f\t %.2f\t %.2f\n',time_stats(4,1), ...
     time_stats(4,2),time_stats(4,3),time_stats(4,4))
+
+fprintf('\nAlgorithm Evaluation - ODR Iterations\n')
+fprintf('\t\t mean\t std\t min\t max\t mode\n')
+fprintf('3D ODR_v1\t %.2f\t %.2f\t %.2f\t %.2f\t %.2f\n',iter_stats(1,1), ...
+    iter_stats(1,2),iter_stats(1,3),iter_stats(1,4),iter_stats(1,5))
+fprintf('3D ODR_v2\t %.2f\t %.2f\t %.2f\t %.2f\t %.2f\n',iter_stats(2,1), ...
+    iter_stats(2,2),iter_stats(2,3),iter_stats(2,4),iter_stats(2,5))
 
 %% Generate PDF Data
 

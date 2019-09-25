@@ -27,7 +27,7 @@ p = size(beta0,1);
 m = size(d,1);
 
 % [ S, T ] = ODR_getScalingMatrices();
-S = 5*eye(p);           % s scaling matrix - 10 empirically chosen
+S = 10*eye(p);           % s scaling matrix - 10 empirically chosen
 T = eye(Ntargets*m);    % t scaling matrix
 alpha = 0.001;          % Lagrange multiplier
 alpha = 1;
@@ -57,6 +57,7 @@ else
 end
 
 % initialize
+beta      = NaN*ones(p,max_iter);
 beta(:,1) = beta0;
 delta     = delta0;
 s         = ones(p,1);
@@ -120,7 +121,11 @@ while norm(s) > converge_thres
     end
 end 
 
-model = beta(:,end);
+% remove NaN columns from beta matrix
+idx = ~isnan(beta(1,:));
+beta = beta(:,idx);
+
+model = beta(:,k);
 if get_covar
     cov_beta = odr_getCovariance( G, V, D, eps, delta, weights, d );
 else

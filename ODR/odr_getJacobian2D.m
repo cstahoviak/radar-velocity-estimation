@@ -24,7 +24,8 @@ V = zeros(Ntargets);
 
 for i=1:Ntargets
     G(i,:) = weights(i)*[cos(X(i) + delta(i)), sin(X(i) + delta(i))];
-    V(i,i) = weights(i)*(-beta(1)*sin(X(i) + delta(i)) + beta(2)*cos(X(i) + delta(i)));
+    V(i,i) = weights(i)*(-beta(1)*sin(X(i) + delta(i)) + ...
+        beta(2)*cos(X(i) + delta(i)));
 end
 
 % G = diag(weights) * G;
