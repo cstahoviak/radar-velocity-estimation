@@ -39,7 +39,7 @@ get_covar = false;
 %% Define measurement parameters
 
 % number of simulated targets
-Ninliers = 100;
+Ninliers = 80;
 Noutliers = 35;
 Ntargets = Ninliers + Noutliers;
 
@@ -51,7 +51,7 @@ sigma_outlier = [sigma_vr_outlier; sigma_theta];
 
 %% Monte Carlo Study - Matlab MLESAC vs. LSQNONLIN vs. ODR_V1
 
-mc_iter = 200;
+mc_iter = 250;
 
 rmse = NaN*ones(mc_iter,4);         % [mlesac, ols, odr_v1, odr_v2]
 time = NaN*ones(mc_iter,4);         % [mlesac, ols, odr_v1, odr_v2]
@@ -85,10 +85,10 @@ for i=1:mc_iter
     inliers(i) = sum(inlier_idx);
     
     % get 2D Orthogonal Distance Regression (ODR v1) estimate
-    tic
     weights = (1/sigma_vr)*ones(inliers(i),1);
     data = [radar_doppler(inlier_idx), radar_azimuth(inlier_idx), ...
         zeros(inliers(i),1)];
+    tic
     [ model_odr, ~, ~, ~ ] = ODR_v1( data, d, model_mlesac, ...
         sigma(2), weights, converge_thres, max_iter, get_covar );
     time(i,3) = toc;
@@ -117,30 +117,37 @@ time = 1e3*time;
 
 %% Compute Statistics
 
-rmse_mean  = mean(rmse,1)';
-rmse_sigma = std(rmse,1)';
+rmse_stats = [mean(rmse,1)', std(rmse,1)', min(rmse)', max(rmse)'];
+time_stats = [mean(time,1)', std(time,1)', min(time)', max(time)'];
 
-time_mean  = mean(time,1)';
-time_sigma = std(time,1)';
+fprintf('\nAlgorithm Evaluation - Ego-Velocity RMSE [m/s]\n')
+fprintf('\t\t mean\t std\t min\t max\n')
+fprintf('Matlab MLESAC\t %.4f\t %.4f\t %.4f\t %.4f\n',rmse_stats(1,1), ...
+    rmse_stats(1,2),rmse_stats(1,3),rmse_stats(1,4))
+fprintf('LSQNONLIN (OLS)\t %.4f\t %.4f\t %.4f\t %.4f\n',rmse_stats(2,1), ...
+    rmse_stats(2,2),rmse_stats(2,3),rmse_stats(2,4))
+fprintf('ODR v1\t\t %.4f\t %.4f\t %.4f\t %.4f\n',rmse_stats(3,1), ...
+    rmse_stats(3,2),rmse_stats(3,3),rmse_stats(3,4))
+fprintf('ODR v2\t\t %.4f\t %.4f\t %.4f\t %.4f\n',rmse_stats(4,1), ...
+    rmse_stats(4,2),rmse_stats(4,3),rmse_stats(4,4))
 
-fprintf('\nAlgorithm Evaluation - Ego-Velocity RMSE\n')
-fprintf('\t\t mean\t std. dev.\n')
-fprintf('Matlab MLESAC\t %.4f\t %.4f\n', rmse_mean(1), rmse_sigma(1))
-fprintf('LSQNONLIN (OLS)\t %.4f\t %.4f\n', rmse_mean(2), rmse_sigma(2))
-fprintf('ODR_v1\t\t %.4f\t %.4f\n', rmse_mean(3), rmse_sigma(3))
-fprintf('ODR_v2\t\t %.4f\t %.4f\n', rmse_mean(4), rmse_sigma(4))
-
-fprintf('\nAlgorithm Evaluation - Execution Time\n')
-fprintf('\t\t mean\t\t std. dev.\n')
-fprintf('Matlab MLESAC\t %.4f\t\t %.4f\n', time_mean(1), time_sigma(1))
-fprintf('LSQNONLIN (OLS)\t %.4f\t\t %.4f\n', time_mean(2), time_sigma(2))
-fprintf('ODR_v1\t\t %.4f\t %.4f\n', time_mean(3), time_sigma(3))
-fprintf('ODR_v2\t\t %.4f\t %.4f\n', time_mean(4), time_sigma(4))
+fprintf('\nAlgorithm Evaluation - Execution Time [milliseconds]\n')
+fprintf('\t\t mean\t std\t min\t max\n')
+fprintf('Matlab MLESAC\t %.2f\t %.2f\t %.2f\t %.2f\n',time_stats(1,1), ...
+    time_stats(1,2),time_stats(1,3),time_stats(1,4))
+fprintf('LSQNONLIN (OLS)\t %.2f\t %.2f\t %.2f\t %.2f\n',time_stats(2,1), ...
+    time_stats(2,2),time_stats(2,3),time_stats(2,4))
+fprintf('ODR v1\t\t %.2f\t %.2f\t %.2f\t %.2f\n',time_stats(3,1), ...
+    time_stats(3,2),time_stats(3,3),time_stats(3,4))
+fprintf('ODR v2\t\t %.2f\t %.2f\t %.2f\t %.2f\n',time_stats(4,1), ...
+    time_stats(4,2),time_stats(4,3),time_stats(4,4))
 
 %% Generate PDF Data
 
+Npts = 200;
+
 % generate RMSE PDF data
-x_rmse = linspace(0,0.1,250);
+x_rmse = linspace(0,rmse_stats(1,4),Npts);
 pdf_type = 'Lognormal';
 nbins = 20;
 alpha = 0.2;    % histogram transparency, 0 < alpha < 1
@@ -156,9 +163,9 @@ pdf_rmse_odr = pdf(pd_rmse_odr,x_rmse);
 pdf_rmse_odr2 = pdf(pd_rmse_odr2,x_rmse);
 
 % generate Execution Time PDF data
-x_time = linspace(0,7,250);
-x_time1 = linspace(0,200,250);
-x_time2 = linspace(0,40,250);
+x_time = linspace(0,time_stats(1,4),Npts);
+x_time1 = linspace(0,time_stats(3,4),Npts);
+x_time2 = linspace(0,time_stats(4,4),Npts);
 pdf_type = 'Lognormal';
 
 pd_time_mlesac = fitdist(time(:,1),pdf_type);
@@ -199,6 +206,7 @@ xlabel('RMSE [m/s]','Interpreter','latex')
 ylabel('density','Interpreter','latex')
 hdl = legend('Matlab MLSEAC','LSQNONLIN','ODR v2');
 set(hdl,'Interpreter','latex')
+xlim([0, rmse_stats(1,4)]);
 
 % plot Execution Time statistics
 figure(2)
@@ -219,7 +227,7 @@ xlabel('execution time [ms]','Interpreter','latex')
 ylabel('density','Interpreter','latex')
 hdl = legend('Matlab MLSEAC','LSQNONLIN','ODR v2');
 set(hdl,'Interpreter','latex')
-% xlim([0,25]);
+xlim([0, time_stats(4,4)]);
 
 % plot ODR Execution Time statistics
 figure(3)
@@ -237,6 +245,6 @@ xlabel('execution time [ms]','Interpreter','latex')
 ylabel('density','Interpreter','latex')
 hdl = legend('ODR v1','ODR v2');
 set(hdl,'Interpreter','latex')
-% xlim([0,25]);
+xlim([0, time_stats(3,4)]);
 
     
