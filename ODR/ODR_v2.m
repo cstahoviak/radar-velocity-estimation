@@ -1,10 +1,14 @@
-function [ model, beta, cov_beta, iter ] = ODR_v1( data, d, beta0, ...
+function [ model, beta, cov_beta, iter ] = ODR_v2( data, d, beta0, ...
     sigma, weights, converge_thres, max_iter, get_covar )
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
 
 % d - error variance ratio vector - 
 %   [sigma_eps/sigma_dtheta; sigma_eps/sigma_dphi] - (m x 1)
+
+%%% NOTE:
+% 1. ODR is non-deterministic in its current form - it will not converge to
+%    *exactly* the same solution given for a given set of inputs.
 
 %%% TODO:
 % 1. fine-tune Lagrange multiplier alpha
@@ -39,6 +43,10 @@ if p == 2
     % construct weighted diagonal matrix D
     D = diag(weights * d);
     
+    % construct E matrix - E = D^2 + alpha*T^2 (ODR-1987 Prop. 2.1)
+    E = diag((weights.^2)*d^2) + alpha*T^2;
+    Einv = inv(E);
+    
 elseif p == 3
     % init delta vector - "interleaved" vector
     delta0 = [normrnd(0,sigma(1),[1,Ntargets]); normrnd(0,sigma(2),[1,Ntargets])];
@@ -70,10 +78,10 @@ while norm(s) > converge_thres
     
     % get Jacobian matrices
     if p == 2
-        [ G, V ] = odr_getJacobian2D( radar_azimuth, delta, ...
-            beta(:,k), weights );
+        [ G, V, M ] = odr_getJacobian2D_v2( radar_azimuth, delta, ...
+            beta(:,k), weights, E );
     elseif p == 3
-        [ G, V ] = odr_getJacobian3D( [radar_azimuth; radar_elevation], ...
+        [ G, V ] = odr_getJacobian3D_v2( [radar_azimuth; radar_elevation], ...
             delta, beta(:,k), weights );
     else
         error('initial guess must be a 2D or 3D vector')
@@ -82,14 +90,11 @@ while norm(s) > converge_thres
 %     disp('G ='); disp(G)
 %     disp('V ='); disp(V)
     
-    % defined to simplify the notation in objectiveFunc
-    P = V'*V + D^2 + alpha*T^2;
-    
     if p == 2
-        doppler_predicted = simulateRadarDoppler2D(beta(:,k), ...
+        doppler_predicted =  simulateRadarDoppler2D(beta(:,k), ...
             radar_azimuth, zeros(Ntargets,1), delta);
     elseif p == 3
-        doppler_predicted = simulateRadarDoppler3D(beta(:,k), ...
+        doppler_predicted =  simulateRadarDoppler3D(beta(:,k), ...
             radar_azimuth, radar_elevation, zeros(Ntargets,1), delta);
     else
         error('initial guess must be a 2D or 3D vector')
@@ -100,10 +105,10 @@ while norm(s) > converge_thres
     
     % anonymous function defined within interation loop in order to use 
     % current values of G, V, D, eps and delta
-    f = @(s) objectiveFunc(s,G,V,D,P,eps,delta);
+    f = @(s) objectiveFunc(s,G,V,D,M,Einv,eps,delta);
     
     s = fminunc(f,s,options);
-    t = -inv(P)*(V'*eps + D*delta + V'*G*s);
+    t = -Einv*(V'*M^2*(eps + G*s - V*Einv*D*delta) + D*delta);
     
     % use s and t to iteratively update beta and delta, respectively
     beta(:,k+1) = beta(:,k) + S*s;
@@ -130,19 +135,15 @@ iter = k-1;
 
 end
 
-function [ fval ] = objectiveFunc(s, G, V, D, P, eps, delta)
-
+function [ fval ] = objectiveFunc(s, G, V, D, M, Einv, eps, delta)
+    
 if (size(G,1) ~= size(V,1)) && (size(G,1) ~= size(D,1)) ...
-        && (size(G,1) ~= size(P,1)) && (size(G,2) ~= size(s,1))
+        && (size(G,1) ~= size(M,1)) && (size(G,2) ~= size(s,1))
     
     error('objectiveFunc: matrix size mismatch')
     
-else
-    n = size(G,1);
-    
-    f = (eye(n) - V*inv(P)*V')^(1/2)*G*s - (eye(n) - V*inv(P)*V')^(-1/2) * ...
-        (-eps + V*inv(P)*(V'*eps + D*delta));
-    
+else    
+    f = M*G*s + M*(eps - V*Einv*D*delta);
     fval = norm(f);
 end
 

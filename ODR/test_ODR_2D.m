@@ -59,7 +59,7 @@ max_vel = 2.5;      % [m/s]
 velocity = (max_vel-min_vel).*rand(2,1) + min_vel;
 
 % create noisy simulated radar measurements
-[~, ~, inlier_azimuth, inlier_doppler ] = getRadarMeasurements( ...
+[~, ~, inlier_doppler, inlier_azimuth ] = getRadarMeasurements( ...
     Ninliers, velocity, radar_angle_bins, sigma );
 
 %% Generate Outlier Data
@@ -67,7 +67,7 @@ velocity = (max_vel-min_vel).*rand(2,1) + min_vel;
 % create noisy simulated radar measurements
 sigma_vr_outlier = 1.5;     % [m/s]
 sigma_outlier = [sigma_vr_outlier; sigma_theta];
-[~, ~, outlier_azimuth, outlier_doppler ] = getRadarMeasurements( ...
+[~, ~, outlier_doppler, outlier_azimuth ] = getRadarMeasurements( ...
     Noutliers, velocity, radar_angle_bins, sigma_outlier );
 
 % combine inlier and outlier data sets
@@ -90,13 +90,19 @@ tic
 time_mlesac = toc;
 Ninliers = sum(inlier_idx);
 
-% get Orthogonal Distance Regression (ODR) estimate - MLESAC seed
+% get Orthogonal Distance Regression (ODR v1) estimate - MLESAC seed
 tic
 weights = (1/sigma_vr)*ones(Ninliers,1);
 data = [radar_doppler(inlier_idx), radar_azimuth(inlier_idx), zeros(Ninliers,1)];
-[ model_odr, beta, cov, odr_iter ] = ODR_v1( data, d, model_mlesac, ...
+[ model_odr1, beta1, cov1, odr_iter1 ] = ODR_v1( data, d, model_mlesac, ...
     sigma(2), weights, converge_thres, max_iter, get_covar );
-time_odr = toc;
+time_odr1 = toc;
+
+% get Orthogonal Distance Regression (ODR v2) estimate - MLESAC seed
+tic
+[ model_odr2, beta2, cov2, odr_iter2 ] = ODR_v2( data, d, model_mlesac, ...
+    sigma(2), weights, converge_thres, max_iter, get_covar );
+time_odr2 = toc;
 
 % get doppler_mlesac estimate
 % data = [radar_doppler, radar_azimuth];
@@ -126,43 +132,49 @@ time_nlinfit = toc;
 RMSE_mlesac    = sqrt(mean((velocity - model_mlesac).^2));
 RMSE_lsqnonlin = sqrt(mean((velocity - model_lsqnonlin).^2));
 RMSE_nlinfit   = sqrt(mean((velocity - model_nlinfit).^2));
-RMSE_odr       = sqrt(mean((velocity - model_odr).^2));
+RMSE_odr1      = sqrt(mean((velocity - model_odr1).^2));
+RMSE_odr2      = sqrt(mean((velocity - model_odr2).^2));
 
 %% Algorithm Evaluation
 
 fprintf('Algorithm Evaluation - Parameter Estimate\n\n');
-fprintf('Truth\t\tMatlab MLESAC\tLSQNONLIN (OLS)\t ODR_v1\n');
-fprintf('%.4f\t\t%.4f\t\t%.4f\t\t %.4f\n', velocity(1), model_mlesac(1), ...
-    model_lsqnonlin(1), model_odr(1));
-fprintf('%.4f\t\t%.4f\t\t%.4f\t\t %.4f\n', velocity(2), model_mlesac(2), ...
-    model_lsqnonlin(2), model_odr(2));
+fprintf('Truth\t\tMatlab MLESAC\tLSQNONLIN (OLS)\t ODR_v1 \tODR_v2\n');
+fprintf('%.4f\t\t%.4f\t\t%.4f\t\t %.4f \t%.4f\n', velocity(1), model_mlesac(1), ...
+    model_lsqnonlin(1), model_odr1(1), model_odr2(1));
+fprintf('%.4f\t\t%.4f\t\t%.4f\t\t %.4f \t%.4f\n', velocity(2), model_mlesac(2), ...
+    model_lsqnonlin(2), model_odr1(2), model_odr2(2));
 
 fprintf('\nAlgorithm Evaluation - RMSE\n');
 fprintf('Matlab MLESAC\t= %.4f\n', RMSE_mlesac);
 fprintf('LSQNONLIN (OLS)\t= %.4f\n', RMSE_lsqnonlin);
 fprintf('NLINFIT (OLS)\t= %.4f\n', RMSE_nlinfit);
-fprintf('ODR_v1\t\t= %.4f\n', RMSE_odr);
+fprintf('ODR_v1\t\t= %.4f\n', RMSE_odr1);
+fprintf('ODR_v2\t\t= %.4f\n', RMSE_odr2);
 
 fprintf('\nAlgorithm Evaluation - Execution Time\n');
 fprintf('Matlab MLESAC\t= %.4f\n', 1e3*time_mlesac);
 fprintf('LSQNONLIN (OLS)\t= %.4f\n', 1e3*time_lsqnonlin);
 fprintf('NLINFIT (OLS)\t= %.4f\n', 1e3*time_nlinfit);
-fprintf('ODR_v1\t\t= %.4f\n', 1e3*time_odr);
+fprintf('ODR_v1\t\t= %.4f\n', 1e3*time_odr1);
+fprintf('ODR_v2\t\t= %.4f\n', 1e3*time_odr2);
 
 fprintf('\nAlgorithm Evaluation - Misc.\n');
 fprintf('Matlab MLESAC Inliers\t= %d\n', Ninliers);
-fprintf('ODR_v1 Iterations\t= %d\n', odr_iter);
+fprintf('ODR_v1 Iterations\t= %d\n', odr_iter1);
+fprintf('ODR_v2 Iterations\t= %d\n', odr_iter2);
+
+return;
 
 %% Plot Results
 
 load('colors.mat')
 
 figure(1)
-plot(beta(1,:), 'b'); hold on;
-plot(beta(2,:), 'r');
-plot([1, length(beta)], [velocity(1), velocity(1)], 'b--')
-plot([1, length(beta)], [velocity(2), velocity(2)], 'r--')
-xlim([1, length(beta)]);
+plot(beta1(1,:), 'b'); hold on;
+plot(beta1(2,:), 'r');
+plot([1, length(beta1)], [velocity(1), velocity(1)], 'b--')
+plot([1, length(beta1)], [velocity(2), velocity(2)], 'r--')
+xlim([1, length(beta1)]);
 xlabel('iteration index','Interpreter','latex')
 ylabel('velocity [m/s]','Interpreter','latex')
 title({'Othrogonal Distance Regression (ODR) - MLESAC Seed', ...
@@ -172,7 +184,7 @@ figure(2)
 quiver(0,0,velocity(1),velocity(2),'--'); hold on;
 quiver(0,0,model_mlesac(1),model_mlesac(2));
 quiver(0,0,model_lsqnonlin(1),model_lsqnonlin(2));
-quiver(0,0,model_odr(1),model_odr(2));
+quiver(0,0,model_odr1(1),model_odr1(2));
 hdl = legend('truth','Matlab MLESAC','LSQNONLIN (OLS)','ODR');
 set(hdl,'Interpreter','latex','Location','best')
 xlabel('$v_x$ [m/s]','Interpreter','latex')
@@ -202,7 +214,7 @@ profile_ols = simulateRadarDoppler2D(model_lsqnonlin, azimuth, ...
     zeros(N,1), zeros(N,1));
 
 % get ODR velocity profile
-profile_odr = simulateRadarDoppler2D(model_odr, azimuth, ...
+profile_odr = simulateRadarDoppler2D(model_odr1, azimuth, ...
     zeros(N,1), zeros(N,1));
 
 figure(4)

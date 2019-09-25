@@ -54,10 +54,10 @@ sigma_vr_outlier = 1.5;     % [m/s]
 
 %% Monte Carlo Study - Matlab MLESAC vs. LSQNONLIN vs. ODR_V1
 
-mc_iter = 250;
+mc_iter = 100;
 
-rmse = NaN*ones(mc_iter,3);         % [mlesac, ols, odr]
-time = NaN*ones(mc_iter,3);         % [mlesac, ols, odr]
+rmse = NaN*ones(mc_iter,3);         % [mlesac, ols, odr_v1]
+time = NaN*ones(mc_iter,3);         % [mlesac, ols, odr_v1]
 inliers = NaN*ones(mc_iter,1);
 odr_iter = NaN*ones(mc_iter,1);
 
@@ -70,18 +70,18 @@ for i=1:mc_iter
     
     % create noisy simulated INLIER radar measurements
     [~, ~, ~, inlier_doppler, inlier_azimuth, inlier_elevation] = ...
-        getRadarMeasurements_3D( Ninliers, velocity, radar_angle_bins, sigma_vr, type );
+        getRadarMeasurements_3D( Ninliers, velocity, radar_angle_bins, ...
+        sigma_vr, sigma, type );
     
     % create noisy simulated OUTLIER radar measurements
     [~, ~, ~, outlier_doppler, outlier_azimuth, outlier_elevation] = ...
-        getRadarMeasurements_3D( Noutliers, velocity, radar_angle_bins, sigma_vr_outlier, type );
+        getRadarMeasurements_3D( Noutliers, velocity, radar_angle_bins, ...
+        sigma_vr_outlier, sigma, type );
 
     % combine inlier and outlier data sets
     radar_doppler = [inlier_doppler; outlier_doppler];
     radar_azimuth = [inlier_azimuth; outlier_azimuth];
     radar_elevation = [inlier_elevation; outlier_elevation];
-
-    radar_data = [(1:Ntargets)', radar_doppler, radar_azimuth, radar_elevation];
     
     % get Matlab MLESAC (Max. Likelihood RANSAC) model and inlier set
     tic
@@ -89,14 +89,6 @@ for i=1:mc_iter
         radar_azimuth', radar_elevation', sampleSize, maxDistance );
     time(i,1) = toc;
     inliers(i) = sum(inlier_idx);
-    
-    % get LSQNONLIN (OLS) solution
-    f = @(model) doppler_residual( model, radar_azimuth(inlier_idx), ...
-        radar_elevation(inlier_idx), radar_doppler(inlier_idx));
-    x0 = ones(size(velocity,1),1);
-    tic
-    model_lsqnonlin = lsqnonlin(f,x0,[],[],opts);
-    time(i,2) = toc;
     
     % get 3D Orthogonal Distance Regression (ODR) estimate
     tic
@@ -106,6 +98,13 @@ for i=1:mc_iter
     [ model_odr, beta, cov, iter ] = ODR_v1( data, d, model_mlesac, ...
         sigma, weights, converge_thres, max_iter, get_covar );
     time(i,3) = toc;
+    
+    % get LSQNONLIN (OLS) solution
+    f = @(model) doppler_residual( model, data );
+    x0 = ones(size(velocity,1),1);
+    tic
+    model_lsqnonlin = lsqnonlin(f,x0,[],[],opts);
+    time(i,2) = toc;
     
     rmse(i,1) = sqrt(mean((velocity - model_mlesac).^2));
     rmse(i,2) = sqrt(mean((velocity - model_lsqnonlin).^2));
