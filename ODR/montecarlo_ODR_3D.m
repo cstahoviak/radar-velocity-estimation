@@ -15,7 +15,7 @@ opts = optimset('display','off');   % for LSQNONLIN
 %% Define MLESAC parameters
 
 % define MLESAC parameters
-sampleSize = 3;                 % problem uniquely-determined for 3 targets
+sampleSize = 3;              % problem uniquely-determined for 3 targets
 maxDistance = 0.15;          % only roughly tuned at this point
 
 n = sampleSize;     % minimum number of points needed to fit the model
@@ -54,7 +54,7 @@ sigma_vr_outlier = 1.5;     % [m/s]
 
 %% Monte Carlo Study - Matlab MLESAC vs. LSQNONLIN vs. ODR_V1
 
-mc_iter = 200;
+mc_iter = 250;
 
 rmse = NaN*ones(mc_iter,5);         % [mlesac, ols, odr_v1, odr_v2, odr_v3]
 time = NaN*ones(mc_iter,5);         % [mlesac, ols, odr_v1, odr_v2, odr_v3]
@@ -171,8 +171,6 @@ fprintf('3D ODR_v2\t %.2f\t %.2f\t %.2f\t %.2f\t %.2f\n',iter_stats(2,1), ...
     iter_stats(2,2),iter_stats(2,3),iter_stats(2,4),iter_stats(2,5))
 fprintf('3D ODR_v3\t %.2f\t %.2f\t %.2f\t %.2f\t %.2f\n',iter_stats(3,1), ...
     iter_stats(3,2),iter_stats(3,3),iter_stats(3,4),iter_stats(3,5))
-
-return;
 
 %% Generate PDF Data
 
