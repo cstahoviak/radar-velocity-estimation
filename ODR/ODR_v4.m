@@ -1,4 +1,4 @@
-function [ model, beta, cov_beta, iter ] = ODR_v3( data, d, beta0, ...
+function [ model, beta, cov_beta, iter ] = ODR_v4( data, d, beta0, ...
     sigma, weights, converge_thres, max_iter, get_covar )
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
@@ -71,10 +71,6 @@ beta(:,1) = beta0;
 delta     = delta0;
 s         = ones(p,1);
 
-% set fminunc options
-options = optimoptions('fminunc','Display','none',...
-    'Algorithm','quasi-newton');
-
 k = 1;
 while norm(s) > converge_thres
     
@@ -82,18 +78,15 @@ while norm(s) > converge_thres
     if p == 2
         [ G, V, M ] = odr_getJacobian2D_v2( radar_azimuth, delta, ...
             beta(:,k), weights, E );
+        
+        doppler_predicted = simulateRadarDoppler2D(beta(:,k), ...
+            radar_azimuth, zeros(Ntargets,1), delta);
+        
     elseif p == 3
         [ G, V, M ] = odr_getJacobian3D_v2( [radar_azimuth; radar_elevation], ...
             delta, beta(:,k), weights, E );
-    else
-        error('initial guess must be a 2D or 3D vector')
-    end
-    
-    if p == 2
-        doppler_predicted =  simulateRadarDoppler2D(beta(:,k), ...
-            radar_azimuth, zeros(Ntargets,1), delta);
-    elseif p == 3
-        doppler_predicted =  simulateRadarDoppler3D(beta(:,k), ...
+        
+        doppler_predicted = simulateRadarDoppler3D(beta(:,k), ...
             radar_azimuth, radar_elevation, zeros(Ntargets,1), delta);
     else
         error('initial guess must be a 2D or 3D vector')
@@ -107,18 +100,11 @@ while norm(s) > converge_thres
     y = -M*(eps - V*Einv*D*delta);
     
     % NOTE: columns of Gbar are *guaranteed* to be linearly ind.
-    r = rank(Gbar);
-    s1 = Gbar\y;
-    
-    % Compute s via QR factorization
-    
-    
-    % anonymous function defined within interation loop in order to use 
-    % current values of G, V, D, eps and delta
-    f = @(s) objectiveFunc(s,Gbar,y);
-    
-    s = fminunc(f,s,options);
+%     r = rank(Gbar);
+    s = Gbar\y;
     t = -Einv*(V'*M^2*(eps + G*s - V*Einv*D*delta) + D*delta);
+    
+    % Compute s via QR factorization (ODR_v5)
     
     % use s and t to iteratively update beta and delta, respectively
     beta(:,k+1) = beta(:,k) + S*s;
@@ -145,17 +131,6 @@ else
     cov_beta = NaN*ones(p);
 end
 iter = k-1;
-
-end
-
-function [ fval ] = objectiveFunc(s, Gbar, y)
-
-if (size(Gbar,1) ~= size(y,1))
-    error('objectiveFunc: matrix size mismatch')
-else
-    f = Gbar*s - y;
-    fval = norm(f);
-end
 
 end
 
