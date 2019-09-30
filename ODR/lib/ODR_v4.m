@@ -1,5 +1,5 @@
 function [ model, beta, cov_beta, iter ] = ODR_v4( data, d, beta0, ...
-    sigma, weights, converge_thres, max_iter, get_covar )
+    sigma, weights, s, converge_thres, max_iter, get_covar )
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -32,7 +32,7 @@ p = size(beta0,1);
 m = size(d,1);
 
 % [ S, T ] = ODR_getScalingMatrices();
-S = 10*eye(p);           % s scaling matrix - 10 empirically chosen
+S = diag(s);            % s scaling matrix - 10 empirically chosen
 T = eye(Ntargets*m);    % t scaling matrix
 alpha = 0.001;          % Lagrange multiplier
 alpha = 1;
@@ -69,7 +69,6 @@ Einv = inv(E);
 beta      = NaN*ones(p,max_iter); 
 beta(:,1) = beta0;
 delta     = delta0;
-s         = ones(p,1);
 
 k = 1;
 while norm(s) > converge_thres

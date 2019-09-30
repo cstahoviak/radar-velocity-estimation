@@ -34,8 +34,7 @@ m = size(d,1);
 % [ S, T ] = ODR_getScalingMatrices();
 S = diag(s);           % s scaling matrix - 10 empirically chosen
 T = eye(Ntargets*m);    % t scaling matrix
-alpha = 0.001;          % Lagrange multiplier
-alpha = 1;
+alpha = 1;          % Lagrange multiplier
 
 if p == 2
     % init delta vector
@@ -69,7 +68,6 @@ Einv = inv(E);
 beta      = NaN*ones(p,max_iter); 
 beta(:,1) = beta0;
 delta     = delta0;
-s         = ones(p,1);
 
 k = 1;
 while norm(s) > converge_thres
