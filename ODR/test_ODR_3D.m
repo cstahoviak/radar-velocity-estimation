@@ -98,7 +98,7 @@ tic
 weights = (1/sigma_vr)*ones(Ninliers,1);
 data = [radar_doppler(inlier_idx), radar_azimuth(inlier_idx), ...
     radar_elevation(inlier_idx)];
-[ model_odr, beta, cov, odr_iter ] = ODR_v1( data, d, model_mlesac, ...
+[ model_odr, beta, cov, odr_iter ] = ODR_v5( data, d, model_mlesac, ...
     sigma, weights, converge_thres, max_iter, get_covar );
 time_odr = toc;
 
@@ -137,8 +137,8 @@ RMSE_odr       = sqrt(mean((velocity - model_odr).^2));
 
 %% Algorithm Evaluation
 
-fprintf('Algorithm Evaluation - Parameter Estimate\n\n');
-fprintf('Truth\t\tMatlab MLESAC\tLSQNONLIN (OLS)\t ODR_v1\n');
+fprintf('Algorithm Evaluation - Parameter Estimate\n');
+fprintf('Truth\t\tMatlab MLESAC\tLSQNONLIN (OLS)\t ODR_v5\n');
 fprintf('%.4f\t\t%.4f\t\t%.4f\t\t %.4f\n', velocity(1), model_mlesac(1), ...
     model_lsqnonlin(1), model_odr(1));
 fprintf('%.4f\t\t%.4f\t\t%.4f\t\t %.4f\n', velocity(2), model_mlesac(2), ...
@@ -146,21 +146,21 @@ fprintf('%.4f\t\t%.4f\t\t%.4f\t\t %.4f\n', velocity(2), model_mlesac(2), ...
 fprintf('%.4f\t\t%.4f\t\t%.4f\t\t %.4f\n', velocity(3), model_mlesac(3), ...
     model_lsqnonlin(3), model_odr(3));
 
-fprintf('\nAlgorithm Evaluation - RMSE\n');
+fprintf('\nAlgorithm Evaluation - RMSE [m/s]\n');
 fprintf('Matlab MLESAC\t= %.4f\n', RMSE_mlesac);
 fprintf('LSQNONLIN (OLS)\t= %.4f\n', RMSE_lsqnonlin);
 fprintf('NLINFIT (OLS)\t= %.4f\n', RMSE_nlinfit);
-fprintf('ODR_v1\t\t= %.4f\n', RMSE_odr);
+fprintf('ODR_v5\t\t= %.4f\n', RMSE_odr);
 
-fprintf('\nAlgorithm Evaluation - Execution Time\n');
+fprintf('\nAlgorithm Evaluation - Execution Time [milliseconds]\n');
 fprintf('Matlab MLESAC\t= %.4f\n', 1e3*time_mlesac);
 fprintf('LSQNONLIN (OLS)\t= %.4f\n', 1e3*time_lsqnonlin);
 fprintf('NLINFIT (OLS)\t= %.4f\n', 1e3*time_nlinfit);
-fprintf('ODR_v1\t\t= %.4f\n', 1e3*time_odr);
+fprintf('ODR_v5\t\t= %.4f\n', 1e3*time_odr);
 
 fprintf('\nAlgorithm Evaluation - Misc.\n');
 fprintf('Matlab MLESAC Inliers\t= %d\n', Ninliers);
-fprintf('ODR_v1 Iterations\t= %d\n', odr_iter);
+fprintf('ODR_v5 Iterations\t= %d\n', odr_iter);
 
 %% Plot Results
 

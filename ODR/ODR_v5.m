@@ -1,4 +1,4 @@
-function [ model, beta, cov_beta, iter ] = ODR_v4( data, d, beta0, ...
+function [ model, beta, cov_beta, iter ] = ODR_v5( data, d, beta0, ...
     sigma, weights, converge_thres, max_iter, get_covar )
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
@@ -99,9 +99,9 @@ while norm(s) > converge_thres
     Gbar = M*G;
     y = -M*(eps - V*Einv*D*delta);
     
-    % NOTE: columns of Gbar are *guaranteed* to be linearly ind.
-%     r = rank(Gbar);
-    s = Gbar\y;
+    % Compute s via QR factorization of Gbar
+    [Q,R] = qr(Gbar,0);
+    s = R\(Q'*y);
     t = -Einv*(V'*M^2*(eps + G*s - V*Einv*D*delta) + D*delta);
     
     % use s and t to iteratively update beta and delta, respectively

@@ -43,7 +43,7 @@ get_covar = false;
 type = 'points';
 
 % number of simulated targets
-Ninliers = 100;
+Ninliers = 160;
 Noutliers = 35;
 Ntargets = Ninliers + Noutliers;
 
@@ -52,14 +52,14 @@ max_vel = 2.5;      % [m/s]
 
 sigma_vr_outlier = 1.5;     % [m/s]
 
-%% Monte Carlo Study - Matlab MLESAC vs. LSQNONLIN vs. ODR_V1
+%% Monte Carlo Study - Matlab MLESAC vs. LSQNONLIN vs. ODR
 
 mc_iter = 250;
 
-rmse = NaN*ones(mc_iter,5);     % [mlesac, ols, odr_v1, odr_v2, odr_v3, odr_v4]
-time = NaN*ones(mc_iter,5);     % [mlesac, ols, odr_v1, odr_v2, odr_v3, odr_v4]
+rmse = NaN*ones(mc_iter,7);     % [mlesac, ols, odr_v1, odr_v2, odr_v3, odr_v4, odr_v5]
+time = NaN*ones(mc_iter,7);     % [mlesac, ols, odr_v1, odr_v2, odr_v3, odr_v4, odr_v5]
 inliers = NaN*ones(mc_iter,1);
-odr_iter = NaN*ones(mc_iter,4);
+odr_iter = NaN*ones(mc_iter,5);
 
 for i=1:mc_iter
     
@@ -117,6 +117,12 @@ for i=1:mc_iter
         sigma, weights, converge_thres, max_iter, get_covar );
     time(i,6) = toc;
     
+    % get Orthogonal Distance Regression (ODR_v4) estimate - MLESAC seed
+    tic
+    [ model_odr5, ~, ~, iter5 ] = ODR_v5( data, d, model_mlesac, ...
+        sigma, weights, converge_thres, max_iter, get_covar );
+    time(i,7) = toc;
+    
     % get LSQNONLIN (OLS) solution
     f = @(model) doppler_residual( model, data );
     x0 = ones(size(velocity,1),1);
@@ -130,8 +136,9 @@ for i=1:mc_iter
     rmse(i,4) = sqrt(mean((velocity - model_odr2).^2));
     rmse(i,5) = sqrt(mean((velocity - model_odr3).^2));
     rmse(i,6) = sqrt(mean((velocity - model_odr4).^2));
+    rmse(i,7) = sqrt(mean((velocity - model_odr5).^2));
     
-    odr_iter(i,:) = [iter, iter2, iter3, iter4];
+    odr_iter(i,:) = [iter, iter2, iter3, iter4, iter5];
 end
 
 % convert time to milliseconds
@@ -158,6 +165,8 @@ fprintf('3D ODR_v3\t %.4f\t %.4f\t %.4f\t %.4f\n',rmse_stats(5,1), ...
     rmse_stats(5,2),rmse_stats(5,3),rmse_stats(5,4))
 fprintf('3D ODR_v4\t %.4f\t %.4f\t %.4f\t %.4f\n',rmse_stats(6,1), ...
     rmse_stats(6,2),rmse_stats(6,3),rmse_stats(6,4))
+fprintf('3D ODR_v5\t %.4f\t %.4f\t %.4f\t %.4f\n',rmse_stats(7,1), ...
+    rmse_stats(7,2),rmse_stats(7,3),rmse_stats(7,4))
 
 fprintf('\nAlgorithm Evaluation - Execution Time [milliseconds]\n')
 fprintf('\t\t mean\t std\t min\t max\n')
@@ -173,6 +182,8 @@ fprintf('3D ODR_v3\t %.2f\t %.2f\t %.2f\t %.2f\n',time_stats(5,1), ...
     time_stats(5,2),time_stats(5,3),time_stats(5,4))
 fprintf('3D ODR_v4\t %.2f\t %.2f\t %.2f\t %.2f\n',time_stats(6,1), ...
     time_stats(6,2),time_stats(6,3),time_stats(6,4))
+fprintf('3D ODR_v5\t %.2f\t %.2f\t %.2f\t %.2f\n',time_stats(7,1), ...
+    time_stats(7,2),time_stats(7,3),time_stats(7,4))
 
 fprintf('\nAlgorithm Evaluation - ODR Iterations\n')
 fprintf('\t\t mean\t std\t min\t max\t mode\n')
@@ -184,6 +195,8 @@ fprintf('3D ODR_v3\t %.2f\t %.2f\t %.2f\t %.2f\t %.2f\n',iter_stats(3,1), ...
     iter_stats(3,2),iter_stats(3,3),iter_stats(3,4),iter_stats(3,5))
 fprintf('3D ODR_v4\t %.2f\t %.2f\t %.2f\t %.2f\t %.2f\n',iter_stats(4,1), ...
     iter_stats(4,2),iter_stats(4,3),iter_stats(4,4),iter_stats(4,5))
+fprintf('3D ODR_v5\t %.2f\t %.2f\t %.2f\t %.2f\t %.2f\n',iter_stats(5,1), ...
+    iter_stats(5,2),iter_stats(5,3),iter_stats(5,4),iter_stats(5,5))
 
 
 %% Generate PDF Data
@@ -196,7 +209,7 @@ pdf_type = 'Lognormal';
 nbins = 20;
 alpha = 0.2;    % histogram transparency, 0 < alpha < 1
 
-pd_rmse_mlesac = fitdist(rmse(:,1),pdf_type);
+pd_rmse_mlesac = fitdist(rmse(:,1),'Normal');
 pd_rmse_ols    = fitdist(rmse(:,2),pdf_type);
 pd_rmse_odr    = fitdist(rmse(:,3),pdf_type);
 pd_rmse_odr2   = fitdist(rmse(:,4),pdf_type);
@@ -222,8 +235,8 @@ pd_time_mlesac = fitdist(time(:,1),pdf_type);
 pd_time_ols    = fitdist(time(:,2),pdf_type);
 pd_time_odr    = fitdist(time(:,3),'Normal');
 pd_time_odr2   = fitdist(time(:,4),'Normal');
-pd_time_odr3   = fitdist(time(:,5),'Normal');
-pd_time_odr4   = fitdist(time(:,6),'Normal');
+pd_time_odr3   = fitdist(time(:,5),pdf_type);
+pd_time_odr4   = fitdist(time(:,6),pdf_type);
 
 pdf_time_mlesac = pdf(pd_time_mlesac,x_time);
 pdf_time_ols = pdf(pd_time_ols,x_time);
@@ -241,15 +254,18 @@ nbins_rmse = 20;
 nbins_time = 20;
 nbins_odr = 25;
 
+width_rmse = 0.005;
+width_time = 0.25;
+
 % plot RMSE statistics 
 figure(1)
 hold on;
-histogram(rmse(:,1),nbins_rmse,'Normalization','pdf','FaceColor', ...
-    colors(2,:),'FaceAlpha',alpha)
-histogram(rmse(:,2),nbins_rmse,'Normalization','pdf','FaceColor', ...
-    colors(3,:),'FaceAlpha',alpha)
-histogram(rmse(:,6),nbins_rmse,'Normalization','pdf','FaceColor', ...
-    colors(1,:),'FaceAlpha',alpha)
+histogram(rmse(:,1),'BinWidth',width_rmse,'Normalization','pdf', ...
+    'FaceColor',colors(2,:),'FaceAlpha',alpha)
+histogram(rmse(:,2),'BinWidth',width_rmse,'Normalization','pdf', ...
+    'FaceColor',colors(3,:),'FaceAlpha',alpha)
+histogram(rmse(:,6),'BinWidth',width_rmse,'Normalization','pdf', ...
+    'FaceColor',colors(1,:),'FaceAlpha',alpha)
 
 plot(x_rmse,pdf_rmse_mlesac,'Color',colors(2,:),'LineWidth',2);
 plot(x_rmse,pdf_rmse_ols,'Color',colors(3,:),'LineWidth',2);
@@ -265,12 +281,12 @@ xlim([0, rmse_stats(1,4)]);
 % plot Execution Time statistics
 figure(2)
 hold on;
-histogram(time(:,1),nbins_time,'Normalization','pdf','FaceColor', ...
-    colors(2,:),'FaceAlpha',alpha)
-histogram(time(:,2),nbins_time,'Normalization','pdf','FaceColor', ...
-    colors(3,:),'FaceAlpha',alpha)
-histogram(time(:,6),nbins_time-10,'Normalization','pdf','FaceColor', ...
-    colors(1,:),'FaceAlpha',alpha)
+histogram(time(:,1),'BinWidth',width_time,'Normalization','pdf', ...
+    'FaceColor',colors(2,:),'FaceAlpha',alpha)
+histogram(time(:,2),'BinWidth',width_time,'Normalization','pdf', ...
+    'FaceColor',colors(3,:),'FaceAlpha',alpha)
+histogram(time(:,6),'BinWidth',width_time,'Normalization','pdf', ...
+    'FaceColor',colors(1,:),'FaceAlpha',alpha)
 
 plot(x_time,pdf_time_mlesac,'Color',colors(2,:),'LineWidth',2);
 plot(x_time,pdf_time_ols,'Color',colors(3,:),'LineWidth',2);
@@ -290,20 +306,20 @@ histogram(time(:,3),nbins_odr,'Normalization','pdf','FaceColor', ...
     colors(4,:),'FaceAlpha',alpha)
 histogram(time(:,4),nbins_odr,'Normalization','pdf','FaceColor', ...
     colors(6,:),'FaceAlpha',alpha)
-histogram(time(:,5),nbins_odr-10,'Normalization','pdf','FaceColor', ...
-    colors(1,:),'FaceAlpha',alpha)
-histogram(time(:,6),nbins_odr-10,'Normalization','pdf','FaceColor', ...
-    colors(5,:),'FaceAlpha',alpha)
+% histogram(time(:,5),nbins_odr-10,'Normalization','pdf','FaceColor', ...
+%     colors(1,:),'FaceAlpha',alpha)
+% histogram(time(:,6),nbins_odr-10,'Normalization','pdf','FaceColor', ...
+%     colors(5,:),'FaceAlpha',alpha)
 
 plot(x_time1,pdf_time_odr,'Color',colors(4,:),'LineWidth',2);
 plot(x_time2,pdf_time_odr2,'Color',colors(6,:),'LineWidth',2);
-plot(x_time3,pdf_time_odr3,'Color',colors(1,:),'LineWidth',2);
-plot(x_time4,pdf_time_odr4,'Color',colors(5,:),'LineWidth',2);
+% plot(x_time3,pdf_time_odr3,'Color',colors(1,:),'LineWidth',2);
+% plot(x_time4,pdf_time_odr4,'Color',colors(5,:),'LineWidth',2);
 
 title({'3D ODR Algorithm Evaluation','Execution Time'},'Interpreter','latex')
 xlabel('execution time [ms]','Interpreter','latex')
 ylabel('density','Interpreter','latex')
-hdl = legend('ODR v1','ODR v2','ODR v3','ODR v4');
+hdl = legend('ODR v1','ODR v2');
 set(hdl,'Interpreter','latex')
 xlim([0, time_stats(3,4)]);
 
@@ -313,13 +329,13 @@ hold on;
 histogram(time(:,4),nbins_odr,'Normalization','pdf','FaceColor', ...
     colors(6,:),'FaceAlpha',alpha)
 histogram(time(:,5),nbins_odr-10,'Normalization','pdf','FaceColor', ...
-    colors(1,:),'FaceAlpha',alpha)
-histogram(time(:,6),nbins_odr-10,'Normalization','pdf','FaceColor', ...
     colors(5,:),'FaceAlpha',alpha)
+histogram(time(:,6),nbins_odr-10,'Normalization','pdf','FaceColor', ...
+    colors(1,:),'FaceAlpha',alpha)
 
 plot(x_time2,pdf_time_odr2,'Color',colors(6,:),'LineWidth',2);
-plot(x_time3,pdf_time_odr3,'Color',colors(1,:),'LineWidth',2);
-plot(x_time4,pdf_time_odr4,'Color',colors(5,:),'LineWidth',2);
+plot(x_time3,pdf_time_odr3,'Color',colors(5,:),'LineWidth',2);
+plot(x_time4,pdf_time_odr4,'Color',colors(1,:),'LineWidth',2);
 
 title({'3D ODR Algorithm Evaluation','Execution Time'},'Interpreter','latex')
 xlabel('execution time [ms]','Interpreter','latex')
