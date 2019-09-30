@@ -33,6 +33,9 @@ sigma = [sigma_theta; sigma_phi];
 % define ODR error variance ratios
 d = [sigma_vr/sigma_theta; sigma_vr/sigma_phi];
 
+% scaling factor for step s
+s = 20*ones(sampleSize,1);
+
 converge_thres = 0.0005;
 max_iter = 50;
 get_covar = false;
@@ -43,7 +46,7 @@ get_covar = false;
 type = 'points';
 
 % number of simulated targets
-Ninliers = 70;
+Ninliers = 160;
 Noutliers = 35;
 
 %% Generate Simulated Radar Measurements
@@ -99,7 +102,7 @@ weights = (1/sigma_vr)*ones(Ninliers,1);
 data = [radar_doppler(inlier_idx), radar_azimuth(inlier_idx), ...
     radar_elevation(inlier_idx)];
 [ model_odr, beta, cov, odr_iter ] = ODR_v5( data, d, model_mlesac, ...
-    sigma, weights, converge_thres, max_iter, get_covar );
+    sigma, weights, s, converge_thres, max_iter, get_covar );
 time_odr = toc;
 
 % get doppler_mlesac (OLS) estimate
