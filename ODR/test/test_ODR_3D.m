@@ -34,11 +34,11 @@ sigma = [sigma_theta; sigma_phi];
 d = [sigma_vr/sigma_theta; sigma_vr/sigma_phi];
 
 % scaling factor for step s
-s = 20*ones(sampleSize,1);
+s = 10*ones(sampleSize,1);
 
 converge_thres = 0.0005;
 max_iter = 50;
-get_covar = false;
+get_covar = true;
 
 %% Define measurement parameters
 
@@ -46,7 +46,7 @@ get_covar = false;
 type = 'points';
 
 % number of simulated targets
-Ninliers = 160;
+Ninliers = 130;
 Noutliers = 35;
 
 %% Generate Simulated Radar Measurements

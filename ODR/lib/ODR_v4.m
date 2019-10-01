@@ -123,7 +123,7 @@ beta = beta(:,idx);
 
 model = beta(:,k);
 if get_covar
-    cov_beta = odr_getCovariance( G, V, D, eps, delta, weights, d );
+    cov_beta = odr_getCovariance( Gbar, D, eps, delta, weights );
 else
     cov_beta = NaN*ones(p);
 end

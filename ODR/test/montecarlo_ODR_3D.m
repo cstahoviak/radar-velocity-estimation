@@ -39,7 +39,7 @@ s5 = 20*ones(sampleSize,1);
 
 converge_thres = 0.0005;
 max_iter = 10;
-get_covar = false;
+get_covar = true;
 
 %% Define measurement parameters
 
@@ -47,7 +47,7 @@ get_covar = false;
 type = 'points';
 
 % number of simulated targets
-Ninliers = 100;
+Ninliers = 125;
 Noutliers = 35;
 Ntargets = Ninliers + Noutliers;
 
@@ -70,7 +70,7 @@ for i=1:mc_iter
     fprintf('MC Iteration: %d\n', i);
     
     % define truth ego-velocity vector
-    velocity = (max_vel-min_vel).*rand(3,1) + min_vel;
+    velocity = (max_vel-min_vel).*rand(sampleSize,1) + min_vel;
     
     % create noisy simulated INLIER radar measurements
     [~, ~, ~, inlier_doppler, inlier_azimuth, inlier_elevation] = ...
@@ -100,28 +100,28 @@ for i=1:mc_iter
     data = [radar_doppler(inlier_idx), radar_azimuth(inlier_idx), ...
         radar_elevation(inlier_idx)];
     [ model_odr, ~, ~, iter ] = ODR_v1( data, d, model_mlesac, ...
-        sigma, weights, converge_thres, max_iter, get_covar );
+        sigma, weights, converge_thres, max_iter, false );
     time(i,3) = toc;
     
-    % get Orthogonal Distance Regression (ODR_v2) estimate - MLESAC seed
+    % get Orthogonal Distance Regression (ODR_v2) estimate
     tic
     [ model_odr2, ~, ~, iter2 ] = ODR_v2( data, d, model_mlesac, ...
-        sigma, weights, converge_thres, max_iter, get_covar );
+        sigma, weights, converge_thres, max_iter, false );
     time(i,4) = toc;
     
-    % get Orthogonal Distance Regression (ODR_v3) estimate - MLESAC seed
+    % get Orthogonal Distance Regression (ODR_v3) estimate
     tic
     [ model_odr3, ~, ~, iter3 ] = ODR_v3( data, d, model_mlesac, ...
         sigma, weights, converge_thres, max_iter, get_covar );
     time(i,5) = toc;
     
-    % get Orthogonal Distance Regression (ODR_v4) estimate - MLESAC seed
+    % get Orthogonal Distance Regression (ODR_v4) estimate
     tic
     [ model_odr4, ~, ~, iter4 ] = ODR_v4( data, d, model_mlesac, ...
-        sigma, weights, s4, converge_thres, max_iter, get_covar );
+        sigma, weights, s5, converge_thres, max_iter, get_covar );
     time(i,6) = toc;
     
-    % get Orthogonal Distance Regression (ODR_v4) estimate - MLESAC seed
+    % get Orthogonal Distance Regression (ODR_v5) estimate
     tic
     [ model_odr5, ~, ~, iter5 ] = ODR_v5( data, d, model_mlesac, ...
         sigma, weights, s5, converge_thres, max_iter, get_covar );
@@ -134,6 +134,7 @@ for i=1:mc_iter
     model_lsqnonlin = lsqnonlin(f,x0,[],[],opts);
     time(i,2) = toc;
     
+    % compute RMSE statistics
     rmse(i,1) = sqrt(mean((velocity - model_mlesac).^2));
     rmse(i,2) = sqrt(mean((velocity - model_lsqnonlin).^2));
     rmse(i,3) = sqrt(mean((velocity - model_odr).^2));
