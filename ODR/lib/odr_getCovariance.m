@@ -12,7 +12,7 @@ g = [eps; delta];
 % residual weighting matrix, Omega
 W = diag(weights.^2);
 Omega = [W,           zeros(n,n*m);
-         zeros(n*m,n) D];
+         zeros(n*m,n) D^2];
 
 % compute total weighted covariance matrix
 cov = 1/(n-p)*(g'*Omega*g)*inv(Gbar'*Gbar);

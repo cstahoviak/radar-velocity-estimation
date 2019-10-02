@@ -93,14 +93,20 @@ while norm(s) > converge_thres
     % re-calculate epsilon
     eps = doppler_predicted - radar_doppler;
     
+    % update the (nX1) and (nmx1) elements of G
+    g1 = weights.*eps;
+    g2 = D*delta;
+    
     % form the elements of the linear least squares problem
     Gbar = M*G;
     y = -M*(eps - V*Einv*D*delta);
+%     y = -M*(g1 - V*Einv*D*g2);
     
     % Compute s via QR factorization of Gbar
     [Q,R] = qr(Gbar,0);
     s = R\(Q'*y);
     t = -Einv*(V'*M^2*(eps + G*s - V*Einv*D*delta) + D*delta);
+%     t = -Einv*(V'*M^2*(g1 + G*s - V*Einv*D*g2) + D*g2);
     
     % use s and t to iteratively update beta and delta, respectively
     beta(:,k+1) = beta(:,k) + S*s;

@@ -96,9 +96,10 @@ tic
 time_mlesac = toc;
 Ninliers = sum(inlier_idx);     % probably shouldn't redefine this var
 
-% get 3D Orthogonal Distance Regression (ODR) estimate - MLESAC seed
+% get 3D Orthogonal Distance Regression (ODR_v4) estimate
 tic
-weights = (1/sigma_vr)*ones(Ninliers,1);
+% weights = (1/sigma_vr)*ones(Ninliers,1);
+weights = (1/sigma_vr)*rand(Ninliers,1);
 data = [radar_doppler(inlier_idx), radar_azimuth(inlier_idx), ...
     radar_elevation(inlier_idx)];
 [ model_odr, beta, cov, odr_iter ] = ODR_v5( data, d, model_mlesac, ...

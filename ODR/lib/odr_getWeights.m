@@ -3,7 +3,7 @@ function [ weights ] = odr_getWeights( radar_intensity, sigma_vr, int_range )
 %   Detailed explanation goes here
 
 % expects radar_intensity as a row vector
-Ntargets = size(radar_intensity,2);
+Ntargets = size(radar_intensity,1);
 
 max_intensity = int_range(1);   % [dB]
 min_intensity = int_range(2);   % [dB]

@@ -1,5 +1,5 @@
-function [ RMSE, error ] = getRMSE( estimate, estimate_time, ...
-    truth, truth_time, dim)
+function [ rmse, error ] = getRMSE( estimate, estimate_time, ...
+    truth, truth_time, dim, thres)
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -8,11 +8,12 @@ function [ RMSE, error ] = getRMSE( estimate, estimate_time, ...
 % derivative used to find "spikes" in body-frame velocity
 % deriv =  abs(diff(vecnorm(velocity_gt,2,2)));
 
+% TODO:
+% 1. Interpolate between Vicon measurements rather than using closest
+% measurement to compute RMSE
+
 NScans = size(estimate,1);
 error = zeros(NScans,dim);
-
-% thres = 2.2;
-thres = inf;
 
 for i=1:NScans
     
@@ -21,10 +22,11 @@ for i=1:NScans
     
     if isnan(estimate(i,:))
 %         error(i,:) = zeros(1,2);
-        error(i,:) = truth(idx,1:dim);
+        error(i,:) = abs(truth(idx,1:dim));
     else
         if norm(truth(idx,:)) < thres
-            error(i,:) = truth(idx,1:dim) - estimate(i,:); 
+            % compute absolute value of error
+            error(i,:) = abs(truth(idx,1:dim) - estimate(i,:)); 
         else
             % find closest value in twist_linear_body vector less than
             % threshold= - really what I need to do is smooth the ground
@@ -35,8 +37,9 @@ for i=1:NScans
     end
 end
 
-RMSE = sqrt(mean(error.^2,1));
-RMSE = RMSE';
+% compute component wise RMSE
+rmse = sqrt(mean(error.^2,1));
+rmse = rmse';
 
 end
 
