@@ -56,12 +56,12 @@ ylabel(axh5_2,'$v_y$ [m/s]','Interpreter','latex');
 ylabel(axh5_3,'$v_z$ [m/s]','Interpreter','latex');
 xlabel(axh5_3,'time [s]','Interpreter','latex');
 
-% Weighted ODR_v4 ego-velocity estimate + groundtruth
+% Const. Weight ODR_v5 ego-velocity estimate + groundtruth
 fh6 = figure(6);
 axh6_1 = subplot(3,1,1); hold(axh6_1, 'on'); grid;
 axh6_2 = subplot(3,1,2); hold(axh6_2, 'on'); grid;
 axh6_3 = subplot(3,1,3); hold(axh6_3, 'on'); grid;
-title(axh6_1,'Weighted ODR\_v4 Ego-Velocity Estimate','Interpreter','latex');
+title(axh6_1,'Constant Weight ODR\_v5 Ego-Velocity Estimate','Interpreter','latex');
 ylabel(axh6_1,'$v_x$ [m/s]','Interpreter','latex');
 ylabel(axh6_2,'$v_y$ [m/s]','Interpreter','latex');
 ylabel(axh6_3,'$v_z$ [m/s]','Interpreter','latex');
@@ -72,7 +72,7 @@ fh7 = figure(7);
 axh7_1 = subplot(3,1,1); hold(axh7_1, 'on'); grid;
 axh7_2 = subplot(3,1,2); hold(axh7_2, 'on'); grid;
 axh7_3 = subplot(3,1,3); hold(axh7_3, 'on'); grid;
-title(axh7_1,'Weighted ODR\_v4 Ego-Velocity Estimate','Interpreter','latex');
+title(axh7_1,'Weighted ODR\_v5 Ego-Velocity Estimate','Interpreter','latex');
 ylabel(axh7_1,'$v_x$ [m/s]','Interpreter','latex');
 ylabel(axh7_2,'$v_y$ [m/s]','Interpreter','latex');
 ylabel(axh7_3,'$v_z$ [m/s]','Interpreter','latex');
@@ -95,7 +95,7 @@ fh9 = figure(9);
 axh9_1 = subplot(3,1,1); hold(axh9_1, 'on'); grid;
 axh9_2 = subplot(3,1,2); hold(axh9_2, 'on'); grid;
 axh9_3 = subplot(3,1,3); hold(axh9_3, 'on'); grid;
-title(axh9_1,{'Ego-Velocity Estimate','Weighted ODR\_v4 vs. LSQNONLIN'}, ...
+title(axh9_1,{'Ego-Velocity Estimate','Constand Weight ODR\_v5 vs. LSQNONLIN'}, ...
     'Interpreter','latex');
 ylabel(axh9_1,'$v_x$ [m/s]','Interpreter','latex');
 ylabel(axh9_2,'$v_y$ [m/s]','Interpreter','latex');

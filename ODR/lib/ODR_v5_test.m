@@ -1,5 +1,5 @@
-function [ model, beta, cov_beta, iter ] = ODR_v5( data, d, beta0, ...
-    sigma, weights, s, converge_thres, max_iter, get_covar )
+function [ model, beta, cov_beta, iter ] = ODR_v5_test( data, d, beta0, ...
+    sigma, weights, s, converge_thres, max_iter, get_covar, delta0 )
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
 
@@ -21,9 +21,6 @@ function [ model, beta, cov_beta, iter ] = ODR_v5( data, d, beta0, ...
 % 5. Verify weighting of Jacobian block-elements - Am I multiplying the
 %    weights in the correct way? - YES
 % 6. Investigate optimal value of scale factor for matrix S (currently 10)
-% 7. Update convergence criteria - 2-norm of doppler residual instead of
-%    norm of step size - see ODR-1989.
-% 8. Implement final step of ODR-1987 to update alpha value at each iteration
 
 % unpack data (into column vectors)
 radar_doppler   = data(:,1);
@@ -48,8 +45,8 @@ if p == 2
     
 elseif p == 3
     % init delta vector - "interleaved" vector
-    delta0 = [normrnd(0,sigma(1),[1,Ntargets]); normrnd(0,sigma(2),[1,Ntargets])];
-    delta0 = delta0(:);
+%     delta0 = [normrnd(0,sigma(1),[1,Ntargets]); normrnd(0,sigma(2),[1,Ntargets])];
+%     delta0 = delta0(:);
 
     % construct weighted block-diagonal matrix D
     D = diag(d);
@@ -94,8 +91,8 @@ while norm(s) > converge_thres
     end
     
     if k == 1
-%         disp('G_v5 ='); disp(G(1:p,1:p))     % G being computed correctly
-%         disp('V_v5 ='); disp(V(1:2*m,1:2*m))
+%         disp('G_v5_test ='); disp(G(1:p,1:p))     % G being computed correctly
+%         disp('V_v5_test ='); disp(V(1:2*m,1:2*m))
     end
     
     % re-calculate epsilon
@@ -125,7 +122,7 @@ while norm(s) > converge_thres
     
     if k > max_iter
 %         disp([k, s'])
-        disp('ODR_v5: max iterations reached')
+        disp('ODR_v5_test: max iterations reached')
         break
     end
 end

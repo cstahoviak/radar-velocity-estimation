@@ -14,11 +14,8 @@ W = diag(weights.^2);
 Omega = [W,           zeros(n,n*m);
          zeros(n*m,n) D^2];
 
-% compute total weighted covariance matrix
-cov = 1/(n-p)*(g'*Omega*g)*inv(Gbar'*Gbar);
-
-% return covariance of model parameters only
-cov_beta = cov(1:p,1:p);
+% compute total weighted covariance matrix of model parameters (pxp)
+cov_beta = 1/(n-p)*(g'*Omega*g)*inv(Gbar'*Gbar);
 
 end
 

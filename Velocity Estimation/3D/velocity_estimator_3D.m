@@ -12,9 +12,9 @@ format compact
 
 opts = optimset('display','off');   % for LSQNONLIN
 
-% Task: To estimate the forward and lateral body frame velocities of the sensor
-% platfrom given input data from a single radar (/mmWaveDataHdl/RScan topic).
-% The velocity estimation scheme takes the following approach:
+% Task: To estimate the3D body-frame velocity of the sensor platfrom given
+% input data from a single radar (/mmWaveDataHdl/RScan topic). The
+% velocity estimation scheme takes the following approach:
 % 
 % 1. Near-field targets are removed from the target list. Many of these targets
 % are artifacts of antenna interference at the senor origin, and are not
@@ -47,6 +47,10 @@ filetype = '.mat';
 
 mat_file = strcat(path,'/mat_files/',filename,filetype);
 load(mat_file);
+
+% print groundtruth statistics
+vicon_stats = false;
+gt1_stats    = false;
 
 %% Modify Radar Data
 
@@ -101,7 +105,7 @@ sigma = [sigma_theta; sigma_phi];
 d = [sigma_vr/sigma_theta; sigma_vr/sigma_phi];
 
 % scaling factor for step s - ODR_v5
-s= 30*ones(sampleSize,1);
+s= 10*ones(sampleSize,1);
 
 converge_thres = 0.0005;
 max_iter = 25;
@@ -250,12 +254,12 @@ Nscans = size(radar_doppler,1);
 % init estimate vectors
 vhat_mlesac    = NaN*ones(Nscans,p);
 vhat_lsqnonlin = NaN*ones(Nscans,p);
-vhat_odr       = NaN*ones(Nscans,p);    % weighted ODR
-vhat_odr_w     = NaN*ones(Nscans,p);    % constant-weight ODR
+vhat_odr       = NaN*ones(Nscans,p);    % constant-weight ODR_v5
+vhat_odr_w     = NaN*ones(Nscans,p);    % weighted ODR_v5
 
 % init covariance matrices
-sigma_odr   = NaN*ones(Nscans,p);
-sigma_odr_w = NaN*ones(Nscans,p);
+sigma_odr   = NaN*ones(Nscans,p);       % constant-weight ODR_v5
+sigma_odr_w = NaN*ones(Nscans,p);       % weighted ODR_v5
 
 % data to save to csv file
 data_save = NaN*ones(Nscans,10);  % [stamp, vx, vy, vz, sigsq_x, sigsq_y, sigsq_z, sig_xy, sig_xz, sig_yz]
@@ -264,11 +268,12 @@ data_save(:,1) = radar_time_stamp;
 targets = NaN*ones(Nscans,3);   % [Ntargets, Ntargets_valid, Ntargets_inlier]
 inliers = NaN*ones(Nscans,1);   % number of MLESAC inliers
 odr_iter = NaN*ones(Nscans,2);  % number of iteratiosn required for ODR convergence
-time = NaN*ones(Nscans,4);      % [mlesac, lsqnonlin, odr_v5_w, odr_v5]
+time = NaN*ones(Nscans,4);      % [mlesac, lsqnonlin, odr_v5, odr_v5_w]
 
 for i=1:Nscans
     
     %%% ORTHOGONAL DISTANCE REGRESSION ON MLESAC INLIER SET %%%%%%%%%%%%%%%
+    fprintf('RScan: %d', i);
     
     Ntargets = sum( ~isnan(radar_doppler(i,:)) );
     targets(i,1) = Ntargets;
@@ -289,7 +294,7 @@ for i=1:Nscans
     targets(i,2) = Ntargets_valid;
     
     if Ntargets_valid > 5
-        % NOTE: a valid velocity estimate can only be derived for 2 or more
+        % NOTE: a valid velocity estimate can only be derived for 3 or more
         % targets located at distinct azimuth bins
 
         % get MLESAC (Maximum Likelihood RANSAC) model and inlier set
@@ -297,8 +302,9 @@ for i=1:Nscans
             elevation', sampleSize, maxDistance );
         Ntargets_inlier = sum(inlier_idx);
         targets(i,3) = Ntargets_inlier;
+        fprintf('\tNinliers = %d\n', Ntargets_inlier);
 
-        % reject 'bad' estimates
+        % reject 'bad' estimates - do this for ODR too (eventually)
         if norm(model_mlesac) < norm_thresh
             vhat_mlesac(i,:) = -model_mlesac';
         elseif i > 1
@@ -311,59 +317,70 @@ for i=1:Nscans
         % concatenate ODR data
         data = [doppler(inlier_idx), azimuth(inlier_idx), ...
             elevation(inlier_idx)];
-
+        
+        % get constant-weight ODR estimate
+        tic
+        weights_const = (1/sigma_vr)*ones(Ntargets_inlier,1);
+        [ model_odr, ~, cov, iter ] = ODR_v5( data, d, model_mlesac, ...
+            sigma, weights_const, s, converge_thres, max_iter, get_covar );
+        time(i,3) = toc;
+        
         % get target weights
         tic
         int_range_scaled = [max(intensity(inlier_idx)); int_range(2)];
         weights = odr_getWeights(intensity(inlier_idx), sigma_vr, int_range_scaled);
-        [ model_odr_w, ~, cov_w, iter_w ] = ODR_v5( data, d, vhat_mlesac(i,:)', ...
+        % % get weighted ODR estimate
+        [ model_odr_w, ~, cov_w, iter_w ] = ODR_v5( data, d, model_mlesac, ...
             sigma, weights, s, converge_thres, max_iter, get_covar );
-        time(i,3) = toc;
-    
-        tic
-        weights_const = (1/sigma_vr)*ones(Ntargets_inlier,1);
-        [ model_odr, ~, cov, iter ] = ODR_v5( data, d, vhat_mlesac(i,:)', ...
-            sigma, weights_const, s, converge_thres, max_iter, get_covar );
         time(i,4) = toc;
 
         % get standard deviations for vx vy, vz
-        sigma_odr_w(i,:) = sqrt(diag(cov_w));
-        sigma_odr(i,:) = sqrt(diag(cov));
-
-        % reject 'bad' weighted ODR estimates
-        if norm(model_odr_w) < norm_thresh
-            vhat_odr_w(i,:) = -model_odr_w';
-        elseif i > 1
-            vhat_odr_w(i,:) = vhat_odr_w(i-1,:);
-            sigma_odr_w(i,:) = sigma_odr_w(i-1,:);
-        else
-            % do nothing
-        end
+        sigma_odr(i,:)    = sqrt(diag(cov));
+        sigma_odr_w(i,:)  = sqrt(diag(cov_w));
         
-        % reject 'bad' ODR estimates
-        if norm(model_odr) < norm_thresh
-            vhat_odr(i,:) = -model_odr';
-        elseif i > 1
-            vhat_odr(i,:) = vhat_odr(i-1,:);
-            sigma_odr(i,:) = sigma_odr(i-1,:);
-        else
-            % do nothing
-        end
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%         % ODR_v5 NOT working for non-constant weights. ODR_v5_test written
+%         % to evaluate why this is happening. ODR_v5_test and the 'old'
+%         % ODR_3D will be compared to find the bug in ODR_v5.
+%         
+%         % init delta vector such that both ODR_v5_test and ODR_3D share the
+%         % same initialization
+%         delta_theta = normrnd(0,sigma(1),[1,Ntargets_inlier]); 
+%         delta_phi = normrnd(0,sigma(2),[1,Ntargets_inlier]);
+%         delta0 = [delta_theta; delta_phi];
+%         delta0 = delta0(:);
+%         
+%         % get weighted ODR_v5 estimate
+%         tic
+%         [ model_odr_w, ~, cov_w, iter_w ] = ODR_v5_test( data, d, model_mlesac, ...
+%             sigma, weights, s, converge_thres, max_iter, get_covar, delta0 );
+%         time(i,3) = toc;
+%         
+%         % get 'old' ODR_3D estimate as comparison
+%         [ model_odr_3d, ~, cov_3d, iter_3d ] = ODR_3D( doppler(inlier_idx)', ...
+%             azimuth(inlier_idx)', elevation(inlier_idx)', d, model_mlesac, ...
+%             [delta_theta'; delta_phi'], weights, converge_thres );
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
         % get LSQNONLIN (OLS) solution
         f = @(model) doppler_residual( model, data );
         x0 = ones(p,1);
         tic
         model_lsqnonlin = lsqnonlin(f,x0,[],[],opts);
+        vhat_lsqnonlin(i,:) = -model_lsqnonlin';
         time(i,2) = toc;
         
+        vhat_lsqnonlin(i,:) = -model_lsqnonlin';
+        vhat_odr(i,:)       = -model_odr';
+        vhat_odr_w(i,:)     = -model_odr_w';
+        
     else
-        fprintf('Fewer than 5 vald targets in scan\n')
+        warning('Fewer than 5 vald targets in scan\n')
         
         vhat_mlesac(i,:)    = NaN*ones(1,p);
         vhat_lsqnonlin(i,:) = NaN*ones(1,p);
-        vhat_odr_w(i,:)     = NaN*ones(1,p);
         vhat_odr(i,:)       = NaN*ones(1,p);
+        vhat_odr_w(i,:)     = NaN*ones(1,p);
     end
     
     data_save(i,2:end) = [vhat_odr_w(i,:), diag(cov_w)', ...
@@ -376,127 +393,139 @@ end
 %          vy_mean, vy_std, vy_min, vy_max;
 %          vz_mean, vz_std, vz_min, vz_max];
 
-% Vicon - MLESAC RMSE statistics
-[rmse_mlesac_vicon, error_mlesac_vicon] = getRMSE( vhat_mlesac, ...
-    radar_time_stamp, twist_linear_body, twist_time_stamp, p, norm_thresh);
-mlesac_vicon_stats = [sqrt(mean(error_mlesac_vicon.^2,1))', ...
-    std(error_mlesac_vicon,1)', min(error_mlesac_vicon)', max(error_mlesac_vicon)'];
+if vicon_stats
+    % Vicon - MLESAC RMSE statistics
+    [rmse_mlesac_vicon, error_mlesac_vicon] = getRMSE( vhat_mlesac, ...
+        radar_time_stamp, twist_linear_body, twist_time_stamp, p, norm_thresh);
+    mlesac_vicon_stats = [sqrt(mean(error_mlesac_vicon.^2,1))', ...
+        std(error_mlesac_vicon,1)', min(error_mlesac_vicon)', max(error_mlesac_vicon)'];
 
-% Vicon - LSQNONLIN RMSE statistics
-[rmse_lsqnonlin_vicon, error_lsqnonlin_vicon] = getRMSE( vhat_lsqnonlin, ...
-    radar_time_stamp, twist_linear_body, twist_time_stamp, p, norm_thresh);
-lsqnonlin_vicon_stats = [sqrt(mean(error_lsqnonlin_vicon.^2,1))', ...
-    std(error_lsqnonlin_vicon,1)', min(error_lsqnonlin_vicon)', max(error_lsqnonlin_vicon)'];
+    % Vicon - LSQNONLIN RMSE statistics
+    [rmse_lsqnonlin_vicon, error_lsqnonlin_vicon] = getRMSE( vhat_lsqnonlin, ...
+        radar_time_stamp, twist_linear_body, twist_time_stamp, p, norm_thresh);
+    lsqnonlin_vicon_stats = [sqrt(mean(error_lsqnonlin_vicon.^2,1))', ...
+        std(error_lsqnonlin_vicon,1)', min(error_lsqnonlin_vicon)', max(error_lsqnonlin_vicon)'];
 
-% Vicon - ODR RMSE statistics
-[rmse_odr_vicon, error_odr_vicon] = getRMSE( vhat_odr, ...
-    radar_time_stamp, twist_linear_body, twist_time_stamp, p, norm_thresh);
-odr_vicon_stats = [sqrt(mean(error_odr_vicon.^2,1))', ...
-    std(error_odr_vicon,1)', min(error_odr_vicon)', max(error_odr_vicon)'];
+    % Vicon - ODR RMSE statistics
+    [rmse_odr_vicon, error_odr_vicon] = getRMSE( vhat_odr, ...
+        radar_time_stamp, twist_linear_body, twist_time_stamp, p, norm_thresh);
+    odr_vicon_stats = [sqrt(mean(error_odr_vicon.^2,1))', ...
+        std(error_odr_vicon,1)', min(error_odr_vicon)', max(error_odr_vicon)'];
 
-% Vicon - Weighted ODR RMSE statistics
-[rmse_odr_w_vicon, error_odr_w_vicon] = getRMSE( vhat_odr_w, ...
-    radar_time_stamp, twist_linear_body, twist_time_stamp, p, norm_thresh);
-odr_w_vicon_stats = [sqrt(mean(error_odr_w_vicon.^2,1))', ...
-    std(error_odr_w_vicon,1)', min(error_odr_w_vicon)', max(error_odr_w_vicon)'];
+    % Vicon - Weighted ODR RMSE statistics
+    [rmse_odr_w_vicon, error_odr_w_vicon] = getRMSE( vhat_odr_w, ...
+        radar_time_stamp, twist_linear_body, twist_time_stamp, p, norm_thresh);
+    odr_w_vicon_stats = [sqrt(mean(error_odr_w_vicon.^2,1))', ...
+        std(error_odr_w_vicon,1)', min(error_odr_w_vicon)', max(error_odr_w_vicon)'];
 
-fprintf('\nVicon Ego-Velocity Error -- Forward [m/s]\n')
-fprintf('\t\t mean\t std\t min\t max\n')
-fprintf('Matlab MLESAC\t %.4f\t %.4f\t %.4f\t %.4f\n',mlesac_vicon_stats(1,1), ...
-    mlesac_vicon_stats(1,2),mlesac_vicon_stats(1,3),mlesac_vicon_stats(1,4))
-fprintf('LSQNONLIN\t %.4f\t %.4f\t %.4f\t %.4f\n',lsqnonlin_vicon_stats(1,1), ...
-    lsqnonlin_vicon_stats(1,2),lsqnonlin_vicon_stats(1,3),lsqnonlin_vicon_stats(1,4))
-fprintf('ODR_v5\t\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_vicon_stats(1,1), ...
-    odr_vicon_stats(1,2),odr_vicon_stats(1,3),odr_vicon_stats(1,4))
-% fprintf('Weighted ODR_v5\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_w_vicon_stats(1,1), ...
-%     odr_w_vicon_stats(1,2),odr_w_vicon_stats(1,3),odr_w_vicon_stats(1,4))
+    fprintf('\nVicon Ego-Velocity Error -- Forward [m/s]\n')
+    fprintf('\t\t mean\t std\t min\t max\n')
+    fprintf('Matlab MLESAC\t %.4f\t %.4f\t %.4f\t %.4f\n',mlesac_vicon_stats(1,1), ...
+        mlesac_vicon_stats(1,2),mlesac_vicon_stats(1,3),mlesac_vicon_stats(1,4))
+    fprintf('LSQNONLIN\t %.4f\t %.4f\t %.4f\t %.4f\n',lsqnonlin_vicon_stats(1,1), ...
+        lsqnonlin_vicon_stats(1,2),lsqnonlin_vicon_stats(1,3),lsqnonlin_vicon_stats(1,4))
+    fprintf('ODR_v5\t\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_vicon_stats(1,1), ...
+        odr_vicon_stats(1,2),odr_vicon_stats(1,3),odr_vicon_stats(1,4))
+    fprintf('Weighted ODR_v5\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_w_vicon_stats(1,1), ...
+        odr_w_vicon_stats(1,2),odr_w_vicon_stats(1,3),odr_w_vicon_stats(1,4))
 
-fprintf('\nVicon Ego-Velocity Error -- Lateral [m/s]\n')
-fprintf('\t\t mean\t std\t min\t max\n')
-fprintf('Matlab MLESAC\t %.4f\t %.4f\t %.4f\t %.4f\n',mlesac_vicon_stats(2,1), ...
-    mlesac_vicon_stats(2,2),mlesac_vicon_stats(2,3),mlesac_vicon_stats(2,4))
-fprintf('LSQNONLIN\t %.4f\t %.4f\t %.4f\t %.4f\n',lsqnonlin_vicon_stats(2,1), ...
-    lsqnonlin_vicon_stats(2,2),lsqnonlin_vicon_stats(2,3),lsqnonlin_vicon_stats(2,4))
-fprintf('ODR_v5\t\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_vicon_stats(2,1), ...
-    odr_vicon_stats(2,2),odr_vicon_stats(2,3),odr_vicon_stats(2,4))
-% fprintf('Weighted ODR_v5\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_w_vicon_stats(2,1), ...
-%     odr_w_vicon_stats(2,2),odr_w_vicon_stats(2,3),odr_w_vicon_stats(2,4))
+    fprintf('\nVicon Ego-Velocity Error -- Lateral [m/s]\n')
+    fprintf('\t\t mean\t std\t min\t max\n')
+    fprintf('Matlab MLESAC\t %.4f\t %.4f\t %.4f\t %.4f\n',mlesac_vicon_stats(2,1), ...
+        mlesac_vicon_stats(2,2),mlesac_vicon_stats(2,3),mlesac_vicon_stats(2,4))
+    fprintf('LSQNONLIN\t %.4f\t %.4f\t %.4f\t %.4f\n',lsqnonlin_vicon_stats(2,1), ...
+        lsqnonlin_vicon_stats(2,2),lsqnonlin_vicon_stats(2,3),lsqnonlin_vicon_stats(2,4))
+    fprintf('ODR_v5\t\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_vicon_stats(2,1), ...
+        odr_vicon_stats(2,2),odr_vicon_stats(2,3),odr_vicon_stats(2,4))
+    fprintf('Weighted ODR_v5\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_w_vicon_stats(2,1), ...
+        odr_w_vicon_stats(2,2),odr_w_vicon_stats(2,3),odr_w_vicon_stats(2,4))
 
-fprintf('\nVicon Ego-Velocity Error -- Vertical [m/s]\n')
-fprintf('\t\t mean\t std\t min\t max\n')
-fprintf('Matlab MLESAC\t %.4f\t %.4f\t %.4f\t %.4f\n',mlesac_vicon_stats(3,1), ...
-    mlesac_vicon_stats(3,2),mlesac_vicon_stats(3,3),mlesac_vicon_stats(3,4))
-fprintf('LSQNONLIN\t %.4f\t %.4f\t %.4f\t %.4f\n',lsqnonlin_vicon_stats(3,1), ...
-    lsqnonlin_vicon_stats(3,2),lsqnonlin_vicon_stats(3,3),lsqnonlin_vicon_stats(3,4))
-fprintf('ODR_v5\t\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_vicon_stats(3,1), ...
-    odr_vicon_stats(3,2),odr_vicon_stats(3,3),odr_vicon_stats(3,4))
-% fprintf('Weighted ODR_v5\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_w_vicon_stats(3,1), ...
-%     odr_w_vicon_stats(3,2),odr_w_vicon_stats(3,3),odr_w_vicon_stats(3,4))
+    fprintf('\nVicon Ego-Velocity Error -- Vertical [m/s]\n')
+    fprintf('\t\t mean\t std\t min\t max\n')
+    fprintf('Matlab MLESAC\t %.4f\t %.4f\t %.4f\t %.4f\n',mlesac_vicon_stats(3,1), ...
+        mlesac_vicon_stats(3,2),mlesac_vicon_stats(3,3),mlesac_vicon_stats(3,4))
+    fprintf('LSQNONLIN\t %.4f\t %.4f\t %.4f\t %.4f\n',lsqnonlin_vicon_stats(3,1), ...
+        lsqnonlin_vicon_stats(3,2),lsqnonlin_vicon_stats(3,3),lsqnonlin_vicon_stats(3,4))
+    fprintf('ODR_v5\t\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_vicon_stats(3,1), ...
+        odr_vicon_stats(3,2),odr_vicon_stats(3,3),odr_vicon_stats(3,4))
+    fprintf('Weighted ODR_v5\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_w_vicon_stats(3,1), ...
+        odr_w_vicon_stats(3,2),odr_w_vicon_stats(3,3),odr_w_vicon_stats(3,4))
+end
 
 %% Compute Groundtruth Method 1 RMSE Statistics
 
 % GT1 - central diff + lowpass filter
 
-% GT1 - MLESAC RMSE statistics
-[rmse_mlesac_gt1, error_mlesac_gt1] = getRMSE( vhat_mlesac, ...
-    radar_time_stamp, velocity_body, velocity_time_stamp, p, norm_thresh);
-mlesac_gt1_stats = [sqrt(mean(error_mlesac_gt1.^2,1))', ...
-    std(error_mlesac_gt1,1)', min(error_mlesac_gt1)', max(error_mlesac_gt1)'];
+% stats = [vx_mean, vx_std, vx_min, vx_max;
+%          vy_mean, vy_std, vy_min, vy_max;
+%          vz_mean, vz_std, vz_min, vz_max];
 
-% GT1 - LSQNONLIN RMSE statistics
-[rmse_lsqnonlin_gt1, error_lsqnonlin_gt1] = getRMSE( vhat_lsqnonlin, ...
-    radar_time_stamp, velocity_body, velocity_time_stamp, p, norm_thresh);
-lsqnonlin_gt1_stats = [sqrt(mean(error_lsqnonlin_gt1.^2,1))', ...
-    std(error_lsqnonlin_gt1,1)', min(error_lsqnonlin_gt1)', max(error_lsqnonlin_gt1)'];
+if gt1_stats
+    % GT1 - MLESAC RMSE statistics
+    [rmse_mlesac_gt1, error_mlesac_gt1] = getRMSE( vhat_mlesac, ...
+        radar_time_stamp, velocity_body, velocity_time_stamp, p, norm_thresh);
+    mlesac_gt1_stats = [sqrt(mean(error_mlesac_gt1.^2,1))', ...
+        std(error_mlesac_gt1,1)', min(error_mlesac_gt1)', max(error_mlesac_gt1)'];
 
-% GT1 - ODR RMSE statistics
-[rmse_odr_gt1, error_odr_gt1] = getRMSE( vhat_odr, ...
-    radar_time_stamp, velocity_body, velocity_time_stamp, p, norm_thresh);
-odr_gt1_stats = [sqrt(mean(error_odr_gt1.^2,1))', ...
-    std(error_odr_gt1,1)', min(error_odr_gt1)', max(error_odr_gt1)'];
+    % GT1 - LSQNONLIN RMSE statistics
+    [rmse_lsqnonlin_gt1, error_lsqnonlin_gt1] = getRMSE( vhat_lsqnonlin, ...
+        radar_time_stamp, velocity_body, velocity_time_stamp, p, norm_thresh);
+    lsqnonlin_gt1_stats = [sqrt(mean(error_lsqnonlin_gt1.^2,1))', ...
+        std(error_lsqnonlin_gt1,1)', min(error_lsqnonlin_gt1)', max(error_lsqnonlin_gt1)'];
 
-% GT1 - Weighted ODR RMSE statistics
-[rmse_odr_w_gt1, error_odr_w_gt1] = getRMSE( vhat_odr_w, ...
-    radar_time_stamp, velocity_body, velocity_time_stamp, p, norm_thresh);
-odr_w_gt1_stats = [sqrt(mean(error_odr_w_gt1.^2,1))', ...
-    std(error_odr_w_gt1,1)', min(error_odr_w_gt1)', max(error_odr_w_gt1)'];
+    % GT1 - ODR RMSE statistics
+    [rmse_odr_gt1, error_odr_gt1] = getRMSE( vhat_odr, ...
+        radar_time_stamp, velocity_body, velocity_time_stamp, p, norm_thresh);
+    odr_gt1_stats = [sqrt(mean(error_odr_gt1.^2,1))', ...
+        std(error_odr_gt1,1)', min(error_odr_gt1)', max(error_odr_gt1)'];
 
-fprintf('\nGT1 Ego-Velocity Error -- Forward [m/s]\n')
-fprintf('\t\t mean\t std\t min\t max\n')
-fprintf('Matlab MLESAC\t %.4f\t %.4f\t %.4f\t %.4f\n',mlesac_gt1_stats(1,1), ...
-    mlesac_gt1_stats(1,2),mlesac_gt1_stats(1,3),mlesac_gt1_stats(1,4))
-fprintf('LSQNONLIN\t %.4f\t %.4f\t %.4f\t %.4f\n',lsqnonlin_gt1_stats(1,1), ...
-    lsqnonlin_gt1_stats(1,2),lsqnonlin_gt1_stats(1,3),lsqnonlin_gt1_stats(1,4))
-fprintf('ODR_v5\t\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_gt1_stats(1,1), ...
-    odr_gt1_stats(1,2),odr_gt1_stats(1,3),odr_gt1_stats(1,4))
-% fprintf('Weighted ODR_v5\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_w_gt1_stats(1,1), ...
-%     odr_w_gt1_stats(1,2),odr_w_gt1_stats(1,3),odr_w_gt1_stats(1,4))
+    % GT1 - Weighted ODR RMSE statistics
+    [rmse_odr_w_gt1, error_odr_w_gt1] = getRMSE( vhat_odr_w, ...
+        radar_time_stamp, velocity_body, velocity_time_stamp, p, norm_thresh);
+    odr_w_gt1_stats = [sqrt(mean(error_odr_w_gt1.^2,1))', ...
+        std(error_odr_w_gt1,1)', min(error_odr_w_gt1)', max(error_odr_w_gt1)'];
 
-fprintf('\nGT1 Ego-Velocity Error -- Lateral [m/s]\n')
-fprintf('\t\t mean\t std\t min\t max\n')
-fprintf('Matlab MLESAC\t %.4f\t %.4f\t %.4f\t %.4f\n',mlesac_gt1_stats(2,1), ...
-    mlesac_gt1_stats(2,2),mlesac_gt1_stats(2,3),mlesac_gt1_stats(2,4))
-fprintf('LSQNONLIN\t %.4f\t %.4f\t %.4f\t %.4f\n',lsqnonlin_gt1_stats(2,1), ...
-    lsqnonlin_gt1_stats(2,2),lsqnonlin_gt1_stats(2,3),lsqnonlin_gt1_stats(2,4))
-fprintf('ODR_v5\t\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_gt1_stats(2,1), ...
-    odr_gt1_stats(2,2),odr_gt1_stats(2,3),odr_gt1_stats(2,4))
-% fprintf('Weighted ODR_v5\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_w_gt1_stats(2,1), ...
-%     odr_w_gt1_stats(2,2),odr_w_gt1_stats(2,3),odr_w_gt1_stats(2,4))
+    fprintf('\nGT1 Ego-Velocity Error -- Forward [m/s]\n')
+    fprintf('\t\t mean\t std\t min\t max\n')
+    fprintf('Matlab MLESAC\t %.4f\t %.4f\t %.4f\t %.4f\n',mlesac_gt1_stats(1,1), ...
+        mlesac_gt1_stats(1,2),mlesac_gt1_stats(1,3),mlesac_gt1_stats(1,4))
+    fprintf('LSQNONLIN\t %.4f\t %.4f\t %.4f\t %.4f\n',lsqnonlin_gt1_stats(1,1), ...
+        lsqnonlin_gt1_stats(1,2),lsqnonlin_gt1_stats(1,3),lsqnonlin_gt1_stats(1,4))
+    fprintf('ODR_v5\t\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_gt1_stats(1,1), ...
+        odr_gt1_stats(1,2),odr_gt1_stats(1,3),odr_gt1_stats(1,4))
+    fprintf('Weighted ODR_v5\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_w_gt1_stats(1,1), ...
+        odr_w_gt1_stats(1,2),odr_w_gt1_stats(1,3),odr_w_gt1_stats(1,4))
 
-fprintf('\nGT1 Ego-Velocity Error -- Vertical [m/s]\n')
-fprintf('\t\t mean\t std\t min\t max\n')
-fprintf('Matlab MLESAC\t %.4f\t %.4f\t %.4f\t %.4f\n',mlesac_gt1_stats(3,1), ...
-    mlesac_gt1_stats(3,2),mlesac_gt1_stats(3,3),mlesac_gt1_stats(3,4))
-fprintf('LSQNONLIN\t %.4f\t %.4f\t %.4f\t %.4f\n',lsqnonlin_gt1_stats(3,1), ...
-    lsqnonlin_gt1_stats(3,2),lsqnonlin_gt1_stats(3,3),lsqnonlin_gt1_stats(3,4))
-fprintf('ODR_v5\t\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_gt1_stats(3,1), ...
-    odr_gt1_stats(3,2),odr_gt1_stats(3,3),odr_gt1_stats(3,4))
-% fprintf('Weighted ODR_v5\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_w_gt1_stats(3,1), ...
-%     odr_w_gt1_stats(3,2),odr_w_gt1_stats(3,3),odr_w_gt1_stats(3,4))
+    fprintf('\nGT1 Ego-Velocity Error -- Lateral [m/s]\n')
+    fprintf('\t\t mean\t std\t min\t max\n')
+    fprintf('Matlab MLESAC\t %.4f\t %.4f\t %.4f\t %.4f\n',mlesac_gt1_stats(2,1), ...
+        mlesac_gt1_stats(2,2),mlesac_gt1_stats(2,3),mlesac_gt1_stats(2,4))
+    fprintf('LSQNONLIN\t %.4f\t %.4f\t %.4f\t %.4f\n',lsqnonlin_gt1_stats(2,1), ...
+        lsqnonlin_gt1_stats(2,2),lsqnonlin_gt1_stats(2,3),lsqnonlin_gt1_stats(2,4))
+    fprintf('ODR_v5\t\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_gt1_stats(2,1), ...
+        odr_gt1_stats(2,2),odr_gt1_stats(2,3),odr_gt1_stats(2,4))
+    fprintf('Weighted ODR_v5\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_w_gt1_stats(2,1), ...
+        odr_w_gt1_stats(2,2),odr_w_gt1_stats(2,3),odr_w_gt1_stats(2,4))
+
+    fprintf('\nGT1 Ego-Velocity Error -- Vertical [m/s]\n')
+    fprintf('\t\t mean\t std\t min\t max\n')
+    fprintf('Matlab MLESAC\t %.4f\t %.4f\t %.4f\t %.4f\n',mlesac_gt1_stats(3,1), ...
+        mlesac_gt1_stats(3,2),mlesac_gt1_stats(3,3),mlesac_gt1_stats(3,4))
+    fprintf('LSQNONLIN\t %.4f\t %.4f\t %.4f\t %.4f\n',lsqnonlin_gt1_stats(3,1), ...
+        lsqnonlin_gt1_stats(3,2),lsqnonlin_gt1_stats(3,3),lsqnonlin_gt1_stats(3,4))
+    fprintf('ODR_v5\t\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_gt1_stats(3,1), ...
+        odr_gt1_stats(3,2),odr_gt1_stats(3,3),odr_gt1_stats(3,4))
+    fprintf('Weighted ODR_v5\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_w_gt1_stats(3,1), ...
+        odr_w_gt1_stats(3,2),odr_w_gt1_stats(3,3),odr_w_gt1_stats(3,4))
+end
 
 %% Compute Groundtruth Method 2 RMSE Statistics
 
 % GT2 - central diff + lowpass filter + moving avg filter
+
+% stats = [vx_mean, vx_std, vx_min, vx_max;
+%          vy_mean, vy_std, vy_min, vy_max;
+%          vz_mean, vz_std, vz_min, vz_max];
 
 % GT2 - MLESAC RMSE statistics
 [rmse_mlesac_gt2, error_mlesac_gt2] = getRMSE( vhat_mlesac, ...
@@ -530,8 +559,8 @@ fprintf('LSQNONLIN\t %.4f\t %.4f\t %.4f\t %.4f\n',lsqnonlin_gt2_stats(1,1), ...
     lsqnonlin_gt2_stats(1,2),lsqnonlin_gt2_stats(1,3),lsqnonlin_gt2_stats(1,4))
 fprintf('ODR_v5\t\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_gt2_stats(1,1), ...
     odr_gt2_stats(1,2),odr_gt2_stats(1,3),odr_gt2_stats(1,4))
-% fprintf('Weighted ODR_v5\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_w_gt2_stats(1,1), ...
-%     odr_w_gt2_stats(1,2),odr_w_gt2_stats(1,3),odr_w_gt2_stats(1,4))
+fprintf('Weighted ODR_v5\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_w_gt2_stats(1,1), ...
+    odr_w_gt2_stats(1,2),odr_w_gt2_stats(1,3),odr_w_gt2_stats(1,4))
 
 fprintf('\nGT2 Ego-Velocity Error -- Lateral [m/s]\n')
 fprintf('\t\t mean\t std\t min\t max\n')
@@ -541,8 +570,8 @@ fprintf('LSQNONLIN\t %.4f\t %.4f\t %.4f\t %.4f\n',lsqnonlin_gt2_stats(2,1), ...
     lsqnonlin_gt2_stats(2,2),lsqnonlin_gt2_stats(2,3),lsqnonlin_gt2_stats(2,4))
 fprintf('ODR_v5\t\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_gt2_stats(2,1), ...
     odr_gt2_stats(2,2),odr_gt2_stats(2,3),odr_gt2_stats(2,4))
-% fprintf('Weighted ODR_v5\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_w_gt2_stats(2,1), ...
-%     odr_w_gt2_stats(2,2),odr_w_gt2_stats(2,3),odr_w_gt2_stats(2,4))
+fprintf('Weighted ODR_v5\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_w_gt2_stats(2,1), ...
+    odr_w_gt2_stats(2,2),odr_w_gt2_stats(2,3),odr_w_gt2_stats(2,4))
 
 fprintf('\nGT2 Ego-Velocity Error -- Vertical [m/s]\n')
 fprintf('\t\t mean\t std\t min\t max\n')
@@ -552,108 +581,81 @@ fprintf('LSQNONLIN\t %.4f\t %.4f\t %.4f\t %.4f\n',lsqnonlin_gt2_stats(3,1), ...
     lsqnonlin_gt2_stats(3,2),lsqnonlin_gt2_stats(3,3),lsqnonlin_gt2_stats(3,4))
 fprintf('ODR_v5\t\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_gt2_stats(3,1), ...
     odr_gt2_stats(3,2),odr_gt2_stats(3,3),odr_gt2_stats(3,4))
-% fprintf('Weighted ODR_v5\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_w_gt2_stats(3,1), ...
-%     odr_w_gt2_stats(3,2),odr_w_gt2_stats(3,3),odr_w_gt2_stats(3,4))
+fprintf('Weighted ODR_v5\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_w_gt2_stats(3,1), ...
+    odr_w_gt2_stats(3,2),odr_w_gt2_stats(3,3),odr_w_gt2_stats(3,4))
 
-return;
 
 %% Plot Data
 
-% plot MLESAC estimate
-if strcmp(vehicle,'quad')
-    % Vicon Ground Truth - Noisy!
-%     plot(ax_h(5),twist_time_second,twist_linear_body(:,1),...
-%         'color',colors(2,:),'LineWidth',1);
-%     plot(ax_h(6),twist_time_second,twist_linear_body(:,2),...
-%         'color',colors(2,:),'LineWidth',1);
-%     plot(ax_h(7),twist_time_second,twist_linear_body(:,3),...
-%         'color',colors(2,:),'LineWidth',1);
-    
-    % Andrew's Ground Truth Method
-%     plot(ax_h(5),gt_time_second,gt_velocity_body(:,1),...
-%         'color',colors(2,:),'LineWidth',1);
-%     plot(ax_h(6),gt_time_second,gt_velocity_body(:,2),...
-%         'color',colors(2,:),'LineWidth',1);
-%     plot(ax_h(7),gt_time_second,gt_velocity_body(:,3),...
-%         'color',colors(2,:),'LineWidth',1);
-    
-%     % central difference + lowpass filter method
-%     plot(ax_h(5),velocity_time_second,velocity_body(:,1),...
-%         'color',colors(2,:),'LineWidth',1);
-%     plot(ax_h(6),velocity_time_second,velocity_body(:,2),...
-%         'color',colors(2,:),'LineWidth',1);
-%     plot(ax_h(7),velocity_time_second,velocity_body(:,3),...
-%         'color',colors(2,:),'LineWidth',1);
-    
-    % central diff + lowpass + moving avg filter
-    plot(ax_h(5),velocity_time_second,velocity_body_smooth(:,1),...
-        'color',colors(2,:),'LineWidth',1);
-    plot(ax_h(6),velocity_time_second,velocity_body_smooth(:,2),...
-        'color',colors(2,:),'LineWidth',1);
-    plot(ax_h(7),velocity_time_second,velocity_body_smooth(:,3),...
-        'color',colors(2,:),'LineWidth',1);
+% clear axes
+for i=9:length(ax_h)
+    cla(ax_h(i));
 end
-plot(ax_h(5),radar_time_second,vhat_mlesac(:,1),'k','LineWidth',1);
-plot(ax_h(6),radar_time_second,vhat_mlesac(:,2),'k','LineWidth',1);
-plot(ax_h(7),radar_time_second,vhat_mlesac(:,3),'k','LineWidth',1);
-% ylim(ax_h(6),[-1.5,1.5]); ylim(ax_h(7),[-1,1]);
-xlim(ax_h(5), [0, radar_time_second(end)]);
-xlim(ax_h(6), [0, radar_time_second(end)]);
-xlim(ax_h(7), [0, radar_time_second(end)]);
-if strcmp(vehicle,'quad')
-    hdl = legend(ax_h(7),'Vicon system','MLESAC');
-else
-    hdl = legend(ax_h(5),'MLESAC');
-end
-set(hdl,'Interpreter','latex','Location','northwest')
 
-% plot weighted ODR estimate
-if strcmp(vehicle,'quad')
-    % Vicon Ground Truth - Noisy!
-%     plot(ax_h(10),twist_time_second,twist_linear_body(:,1),...
-%         'color',colors(2,:),'LineWidth',1);
-%     plot(ax_h(11),twist_time_second,twist_linear_body(:,2),...
-%         'color',colors(2,:),'LineWidth',1);
-%     plot(ax_h(12),twist_time_second,twist_linear_body(:,3),...
-%         'color',colors(2,:),'LineWidth',1);
-    
-    % Andrew's Ground Truth Method
-%     plot(ax_h(10),gt_time_second,gt_velocity_body(:,1),...
-%         'color',colors(2,:),'LineWidth',1);
-%     plot(ax_h(11),gt_time_second,gt_velocity_body(:,2),...
-%         'color',colors(2,:),'LineWidth',1);
-%     plot(ax_h(12),gt_time_second,gt_velocity_body(:,3),...
-%         'color',colors(2,:),'LineWidth',1);
-    
-%     % central difference + lowpass filter method
-%     plot(ax_h(10),velocity_time_second,velocity_body(:,1),...
-%         'color',colors(2,:),'LineWidth',1);
-%     plot(ax_h(11),velocity_time_second,velocity_body(:,2),...
-%         'color',colors(2,:),'LineWidth',1);
-%     plot(ax_h(12),velocity_time_second,velocity_body(:,3),...
-%         'color',colors(2,:),'LineWidth',1);
-    
-    % central diff + lowpass + moving avg filter
-    plot(ax_h(10),velocity_time_second,velocity_body_smooth(:,1),...
-        'color',colors(2,:),'LineWidth',1);
-    plot(ax_h(11),velocity_time_second,velocity_body_smooth(:,2),...
-        'color',colors(2,:),'LineWidth',1);
-    plot(ax_h(12),velocity_time_second,velocity_body_smooth(:,3),...
-        'color',colors(2,:),'LineWidth',1);
-end
-plot(ax_h(10),radar_time_second,vhat_odr_w(:,1),'k','LineWidth',1);
-plot(ax_h(11),radar_time_second,vhat_odr_w(:,2),'k','LineWidth',1);
-plot(ax_h(12),radar_time_second,vhat_odr_w(:,3),'k','LineWidth',1);
-% ylim(ax_h(10),[-1,1.5]); ylim(ax_h(11),[-1,1]);
-xlim(ax_h(10), [0, radar_time_second(end)]);
-xlim(ax_h(11), [0, radar_time_second(end)]);
-xlim(ax_h(12), [0, radar_time_second(end)]);
-if strcmp(vehicle,'quad')
-    hdl = legend(ax_h(11),'Vicon system','weighted ODR');
-else
-    hdl = legend(ax_h(10),'weighted ODR');
-end
-set(hdl,'Interpreter','latex','Location','northwest')
+% use specific type of groundtruth method
+% gt = twist_linear_body;
+% gt = velocity_body;
+gt = velocity_body_smooth;
+
+% plot MLESAC ego-velocity estimate + groundtruth
+plot(ax_h(8),velocity_time_second,gt(:,1),'k','LineWidth',1);
+plot(ax_h(9),velocity_time_second,gt(:,2),'k','LineWidth',1);
+plot(ax_h(10),velocity_time_second,gt(:,3),'k','LineWidth',1);
+plot(ax_h(8),radar_time_second,vhat_mlesac(:,1),'color',colors(2,:));
+plot(ax_h(9),radar_time_second,vhat_mlesac(:,2),'color',colors(2,:));
+plot(ax_h(10),radar_time_second,vhat_mlesac(:,3),'color',colors(2,:));
+xlim(ax_h(8),[0,velocity_time_second(end)])
+xlim(ax_h(9),[0,velocity_time_second(end)])
+xlim(ax_h(10),[0,velocity_time_second(end)])
+
+% plot LSQNONLIN ego-velocity estimate + groundtruth
+plot(ax_h(11),velocity_time_second,gt(:,1),'k','LineWidth',1);
+plot(ax_h(12),velocity_time_second,gt(:,2),'k','LineWidth',1);
+plot(ax_h(13),velocity_time_second,gt(:,3),'k','LineWidth',1);
+plot(ax_h(11),radar_time_second,vhat_lsqnonlin(:,1),'color',colors(3,:));
+plot(ax_h(12),radar_time_second,vhat_lsqnonlin(:,2),'color',colors(3,:));
+plot(ax_h(13),radar_time_second,vhat_lsqnonlin(:,3),'color',colors(3,:));
+xlim(ax_h(11),[0,velocity_time_second(end)])
+xlim(ax_h(12),[0,velocity_time_second(end)])
+xlim(ax_h(13),[0,velocity_time_second(end)])
+
+% plot Const. Weight ODR_v5 ego-velocity estimate + groundtruth
+plot(ax_h(14),velocity_time_second,gt(:,1),'k','LineWidth',1);
+plot(ax_h(15),velocity_time_second,gt(:,2),'k','LineWidth',1);
+plot(ax_h(16),velocity_time_second,gt(:,3),'k','LineWidth',1);
+plot(ax_h(14),radar_time_second,vhat_odr(:,1),'color',colors(1,:));
+plot(ax_h(15),radar_time_second,vhat_odr(:,2),'color',colors(1,:));
+plot(ax_h(16),radar_time_second,vhat_odr(:,3),'color',colors(1,:));
+xlim(ax_h(14),[0,velocity_time_second(end)])
+xlim(ax_h(15),[0,velocity_time_second(end)])
+xlim(ax_h(16),[0,velocity_time_second(end)])
+
+% plot Weighted ODR_v5 ego-velocity estimate + groundtruth
+plot(ax_h(17),velocity_time_second,gt(:,1),'k','LineWidth',1);
+plot(ax_h(18),velocity_time_second,gt(:,2),'k','LineWidth',1);
+plot(ax_h(19),velocity_time_second,gt(:,3),'k','LineWidth',1);
+plot(ax_h(17),radar_time_second,vhat_odr_w(:,1),'color',colors(1,:));
+plot(ax_h(18),radar_time_second,vhat_odr_w(:,2),'color',colors(1,:));
+plot(ax_h(19),radar_time_second,vhat_odr_w(:,3),'color',colors(1,:));
+xlim(ax_h(17),[0,velocity_time_second(end)])
+xlim(ax_h(18),[0,velocity_time_second(end)])
+xlim(ax_h(19),[0,velocity_time_second(end)])
+
+% plot Const. Weight ODR_v5 + LSQNONLIN ego-velocity estimate + groundtruth
+plot(ax_h(23),velocity_time_second,gt(:,1),'k');
+plot(ax_h(24),velocity_time_second,gt(:,2),'k');
+plot(ax_h(25),velocity_time_second,gt(:,3),'k');
+plot(ax_h(23),radar_time_second,vhat_lsqnonlin(:,1),'color',colors(3,:));
+plot(ax_h(24),radar_time_second,vhat_lsqnonlin(:,2),'color',colors(3,:));
+plot(ax_h(25),radar_time_second,vhat_lsqnonlin(:,3),'color',colors(3,:));
+plot(ax_h(23),radar_time_second,vhat_odr(:,1),'color',colors(1,:));
+plot(ax_h(24),radar_time_second,vhat_odr(:,2),'color',colors(1,:));
+plot(ax_h(25),radar_time_second,vhat_odr(:,3),'color',colors(1,:));
+xlim(ax_h(23),[0,velocity_time_second(end)])
+xlim(ax_h(24),[0,velocity_time_second(end)])
+xlim(ax_h(25),[0,velocity_time_second(end)])
+
+return;
 
 K = 10;
 % plot weighted ODR + covariance bounds

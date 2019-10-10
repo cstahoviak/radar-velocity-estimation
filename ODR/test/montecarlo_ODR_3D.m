@@ -97,6 +97,7 @@ for i=1:mc_iter
     % get 3D Orthogonal Distance Regression (ODR_v1) estimate
     tic
     weights = (1/sigma_vr)*ones(inliers(i),1);
+%     weights = (1/sigma_vr)*randi([0,100],inliers(i),1);
     data = [radar_doppler(inlier_idx), radar_azimuth(inlier_idx), ...
         radar_elevation(inlier_idx)];
     [ model_odr, ~, ~, iter ] = ODR_v1( data, d, model_mlesac, ...
