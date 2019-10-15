@@ -36,13 +36,14 @@ vehicle = 'quad';
 ISRR = false;           % evaluating data from ISRR submission 
 
 if strcmp(vehicle,'quad')
-    path = '/home/carl/Data/isrr_2020/radar-quad/fleming/3d_velEstimation_2019-05-17/';
+%     path = '/home/carl/Data/icra_2020/radar-quad/uas_flight_space/2019-09-11/';
+    path = '/home/carl/Data/icra_2020/radar-quad/uas_flight_space/2019-09-13/';
 elseif strcmp(vehicle,'jackal')
     path = '/home/carl/Data/subT/radar-rig/vicon_2019-05-08/';
 else
     path = '';
 end
-filename = 'cfar-800_10Hz_run0';
+filename = 'complex_light-max_run4';
 filetype = '.mat';
 
 mat_file = strcat(path,'/mat_files/',filename,filetype);
@@ -50,7 +51,10 @@ load(mat_file);
 
 % print groundtruth statistics
 vicon_stats = false;
-gt1_stats    = false;
+gt1_stats   = false;
+
+% does dataset include T265 VIO data?
+t265 = true;
 
 %% Modify Radar Data
 
@@ -105,7 +109,7 @@ sigma = [sigma_theta; sigma_phi];
 d = [sigma_vr/sigma_theta; sigma_vr/sigma_phi];
 
 % scaling factor for step s - ODR_v5
-s = 2*ones(sampleSize,1);
+s = 10*ones(sampleSize,1);
 
 converge_thres = 0.0005;
 max_iter = 50;
@@ -246,6 +250,11 @@ if ISRR
     % xlim(ax_h(2),[0, gt_time_second(end)]);
 end
 
+%% Tranform T265 Velocity into NED frame
+
+odom_velocity_body = [-odom_velocity_linear_x, odom_velocity_linear_y, ...
+    -odom_velocity_linear_z];
+
 %% Implement Estimation Scheme
 
 p = 3;  % dimension of velocity estimate vector
@@ -279,6 +288,7 @@ for i=1:Nscans
     targets(i,1) = Ntargets;
     
     % remove NaNs and apply AIRE {angle, intensity, range, elevation} filtering
+    tic
     data_AIRE = [radar_azimuth(i,:)', radar_intensity(i,:)', ...
                  radar_range(i,:)', radar_elevation(i,:)'];
     [ idx_AIRE ] = AIRE_filtering( data_AIRE, thresholds_AIRE);
@@ -300,6 +310,7 @@ for i=1:Nscans
         % get MLESAC (Maximum Likelihood RANSAC) model and inlier set
         [ model_mlesac, inlier_idx ] = MLESAC_3D( doppler', azimuth', ...
             elevation', sampleSize, maxDistance );
+        time(i,1) = toc;
         Ntargets_inlier = sum(inlier_idx);
         targets(i,3) = Ntargets_inlier;
         fprintf('\tNinliers = %d\n', Ntargets_inlier);
@@ -363,11 +374,10 @@ for i=1:Nscans
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
         % get LSQNONLIN (OLS) solution
+        tic
         f = @(model) doppler_residual( model, data );
         x0 = ones(p,1);
-        tic
         model_lsqnonlin = lsqnonlin(f,x0,[],[],opts);
-        vhat_lsqnonlin(i,:) = -model_lsqnonlin';
         time(i,2) = toc;
         
         vhat_lsqnonlin(i,:) = -model_lsqnonlin';
@@ -386,6 +396,9 @@ for i=1:Nscans
     data_save(i,2:end) = [vhat_odr_w(i,:), diag(cov_w)', ...
                              cov_w(1,2), cov_w(1,3), cov_w(2,3)];
 end
+
+% convert time to milliseconds
+time = 1e3*time;
 
 %% Compute Vicon RMSE Statistics
 
@@ -551,6 +564,12 @@ odr_gt2_stats = [sqrt(mean(error_odr_gt2.^2,1))', ...
 odr_w_gt2_stats = [sqrt(mean(error_odr_w_gt2.^2,1))', ...
     std(error_odr_w_gt2,1)', min(error_odr_w_gt2)', max(error_odr_w_gt2)'];
 
+% GT2 - T265 VIO RMSE statistics
+[rmse_vio_gt2, error_vio_gt2] = getRMSE( odom_velocity_body, ...
+    odom_time_stamp, velocity_body_smooth, velocity_time_stamp, p, norm_thresh);
+vio_gt2_stats = [sqrt(mean(error_vio_gt2.^2,1))', ...
+    std(error_vio_gt2,1)', min(error_vio_gt2)', max(error_vio_gt2)'];
+
 fprintf('\nGT2 Ego-Velocity Error -- Forward [m/s]\n')
 fprintf('\t\t mean\t std\t min\t max\n')
 fprintf('Matlab MLESAC\t %.4f\t %.4f\t %.4f\t %.4f\n',mlesac_gt2_stats(1,1), ...
@@ -561,6 +580,10 @@ fprintf('ODR_v5\t\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_gt2_stats(1,1), ...
     odr_gt2_stats(1,2),odr_gt2_stats(1,3),odr_gt2_stats(1,4))
 fprintf('Weighted ODR_v5\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_w_gt2_stats(1,1), ...
     odr_w_gt2_stats(1,2),odr_w_gt2_stats(1,3),odr_w_gt2_stats(1,4))
+if t265
+    fprintf('T265 VIO\t %.4f\t %.4f\t %.4f\t %.4f\n',vio_gt2_stats(1,1), ...
+        vio_gt2_stats(1,2),vio_gt2_stats(1,3),vio_gt2_stats(1,4))
+end
 
 fprintf('\nGT2 Ego-Velocity Error -- Lateral [m/s]\n')
 fprintf('\t\t mean\t std\t min\t max\n')
@@ -572,6 +595,10 @@ fprintf('ODR_v5\t\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_gt2_stats(2,1), ...
     odr_gt2_stats(2,2),odr_gt2_stats(2,3),odr_gt2_stats(2,4))
 fprintf('Weighted ODR_v5\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_w_gt2_stats(2,1), ...
     odr_w_gt2_stats(2,2),odr_w_gt2_stats(2,3),odr_w_gt2_stats(2,4))
+if t265
+    fprintf('T265 VIO\t %.4f\t %.4f\t %.4f\t %.4f\n',vio_gt2_stats(2,1), ...
+        vio_gt2_stats(2,2),vio_gt2_stats(2,3),vio_gt2_stats(2,4))
+end
 
 fprintf('\nGT2 Ego-Velocity Error -- Vertical [m/s]\n')
 fprintf('\t\t mean\t std\t min\t max\n')
@@ -583,7 +610,26 @@ fprintf('ODR_v5\t\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_gt2_stats(3,1), ...
     odr_gt2_stats(3,2),odr_gt2_stats(3,3),odr_gt2_stats(3,4))
 fprintf('Weighted ODR_v5\t %.4f\t %.4f\t %.4f\t %.4f\n',odr_w_gt2_stats(3,1), ...
     odr_w_gt2_stats(3,2),odr_w_gt2_stats(3,3),odr_w_gt2_stats(3,4))
+if t265
+    fprintf('T265 VIO\t %.4f\t %.4f\t %.4f\t %.4f\n',vio_gt2_stats(3,1), ...
+        vio_gt2_stats(3,2),vio_gt2_stats(3,3),vio_gt2_stats(3,4))
+end
 
+
+%% Print Timing Statistics
+
+time_stats = [mean(time,1)', std(time,1)', min(time)', max(time)'];
+
+fprintf('\nAlgorithm Evaluation - Execution Time [milliseconds]\n')
+fprintf('\t\t mean\t std\t min\t max\n')
+fprintf('Matlab MLESAC\t %.2f\t %.2f\t %.2f\t %.2f\n',time_stats(1,1), ...
+    time_stats(1,2),time_stats(1,3),time_stats(1,4))
+fprintf('LSQNONLIN\t %.2f\t %.2f\t %.2f\t %.2f\n',time_stats(2,1), ...
+    time_stats(2,2),time_stats(2,3),time_stats(2,4))
+fprintf('ODR_v5\t\t %.2f\t %.2f\t %.2f\t %.2f\n',time_stats(3,1), ...
+    time_stats(3,2),time_stats(3,3),time_stats(3,4))
+fprintf('Weighted ODR_v5\t %.2f\t %.2f\t %.2f\t %.2f\n',time_stats(4,1), ...
+    time_stats(4,2),time_stats(4,3),time_stats(4,4))
 
 %% Plot Data
 
@@ -598,126 +644,178 @@ end
 gt = velocity_body_smooth;
 
 % plot MLESAC ego-velocity estimate + groundtruth
-plot(ax_h(8),velocity_time_second,gt(:,1),'k','LineWidth',1);
-plot(ax_h(9),velocity_time_second,gt(:,2),'k','LineWidth',1);
-plot(ax_h(10),velocity_time_second,gt(:,3),'k','LineWidth',1);
-plot(ax_h(8),radar_time_second,vhat_mlesac(:,1),'color',colors(2,:));
-plot(ax_h(9),radar_time_second,vhat_mlesac(:,2),'color',colors(2,:));
-plot(ax_h(10),radar_time_second,vhat_mlesac(:,3),'color',colors(2,:));
-xlim(ax_h(8),[0,velocity_time_second(end)])
-xlim(ax_h(9),[0,velocity_time_second(end)])
-xlim(ax_h(10),[0,velocity_time_second(end)])
+h(1) = plot(ax_h(8),velocity_time_stamp,gt(:,1),'k','LineWidth',1);
+plot(ax_h(9),velocity_time_stamp,gt(:,2),'k','LineWidth',1);
+plot(ax_h(10),velocity_time_stamp,gt(:,3),'k','LineWidth',1);
+h(2) = plot(ax_h(8),radar_time_stamp,vhat_mlesac(:,1),'color',colors(2,:));
+plot(ax_h(9),radar_time_stamp,vhat_mlesac(:,2),'color',colors(2,:));
+plot(ax_h(10),radar_time_stamp,vhat_mlesac(:,3),'color',colors(2,:));
+xlim(ax_h(8),[velocity_time_stamp(1),velocity_time_stamp(end)])
+xlim(ax_h(9),[velocity_time_stamp(1),velocity_time_stamp(end)])
+xlim(ax_h(10),[velocity_time_stamp(1),velocity_time_stamp(end)])
+if t265
+    h(3) = plot(ax_h(8),odom_time_stamp,odom_velocity_body(:,1),'color',colors(4,:));
+    plot(ax_h(9),odom_time_stamp,odom_velocity_body(:,2),'color',colors(4,:));
+    plot(ax_h(10),odom_time_stamp,odom_velocity_body(:,3),'color',colors(4,:));
+    
+    legend(h,{'groundtruth','MLESAC','T265 VIO'},'Interpreter','latex')
+else
+    legend(h,{'groundtruth','MLESAC'},'Interpreter','latex')
+end
 
 % plot LSQNONLIN ego-velocity estimate + groundtruth
-plot(ax_h(11),velocity_time_second,gt(:,1),'k','LineWidth',1);
-plot(ax_h(12),velocity_time_second,gt(:,2),'k','LineWidth',1);
-plot(ax_h(13),velocity_time_second,gt(:,3),'k','LineWidth',1);
-plot(ax_h(11),radar_time_second,vhat_lsqnonlin(:,1),'color',colors(3,:));
-plot(ax_h(12),radar_time_second,vhat_lsqnonlin(:,2),'color',colors(3,:));
-plot(ax_h(13),radar_time_second,vhat_lsqnonlin(:,3),'color',colors(3,:));
-xlim(ax_h(11),[0,velocity_time_second(end)])
-xlim(ax_h(12),[0,velocity_time_second(end)])
-xlim(ax_h(13),[0,velocity_time_second(end)])
+h(1) = plot(ax_h(11),velocity_time_stamp,gt(:,1),'k','LineWidth',1);
+plot(ax_h(12),velocity_time_stamp,gt(:,2),'k','LineWidth',1);
+plot(ax_h(13),velocity_time_stamp,gt(:,3),'k','LineWidth',1);
+h(2) = plot(ax_h(11),radar_time_stamp,vhat_lsqnonlin(:,1),'color',colors(3,:));
+plot(ax_h(12),radar_time_stamp,vhat_lsqnonlin(:,2),'color',colors(3,:));
+plot(ax_h(13),radar_time_stamp,vhat_lsqnonlin(:,3),'color',colors(3,:));
+xlim(ax_h(11),[velocity_time_stamp(1),velocity_time_stamp(end)])
+xlim(ax_h(12),[velocity_time_stamp(1),velocity_time_stamp(end)])
+xlim(ax_h(13),[velocity_time_stamp(1),velocity_time_stamp(end)])
+if t265
+    h(3) = plot(ax_h(11),odom_time_stamp,odom_velocity_body(:,1),'color',colors(4,:));
+    plot(ax_h(12),odom_time_stamp,odom_velocity_body(:,2),'color',colors(4,:));
+    plot(ax_h(13),odom_time_stamp,odom_velocity_body(:,3),'color',colors(4,:));
+    
+    legend(h,{'groundtruth','LSQNONLIN','T265 VIO'},'Interpreter','latex')
+else
+    legend(h,{'groundtruth','LSQNONLIN'},'Interpreter','latex')
+end
+
 
 % plot Const. Weight ODR_v5 ego-velocity estimate + groundtruth
-plot(ax_h(14),velocity_time_second,gt(:,1),'k','LineWidth',1);
-plot(ax_h(15),velocity_time_second,gt(:,2),'k','LineWidth',1);
-plot(ax_h(16),velocity_time_second,gt(:,3),'k','LineWidth',1);
-plot(ax_h(14),radar_time_second,vhat_odr(:,1),'color',colors(1,:));
-plot(ax_h(15),radar_time_second,vhat_odr(:,2),'color',colors(1,:));
-plot(ax_h(16),radar_time_second,vhat_odr(:,3),'color',colors(1,:));
-xlim(ax_h(14),[0,velocity_time_second(end)])
-xlim(ax_h(15),[0,velocity_time_second(end)])
-xlim(ax_h(16),[0,velocity_time_second(end)])
+h(1) = plot(ax_h(14),velocity_time_stamp,gt(:,1),'k','LineWidth',1);
+plot(ax_h(15),velocity_time_stamp,gt(:,2),'k','LineWidth',1);
+plot(ax_h(16),velocity_time_stamp,gt(:,3),'k','LineWidth',1);
+h(2) = plot(ax_h(14),radar_time_stamp,vhat_odr(:,1),'color',colors(1,:));
+plot(ax_h(15),radar_time_stamp,vhat_odr(:,2),'color',colors(1,:));
+plot(ax_h(16),radar_time_stamp,vhat_odr(:,3),'color',colors(1,:));
+xlim(ax_h(14),[velocity_time_stamp(1),velocity_time_stamp(end)])
+xlim(ax_h(15),[velocity_time_stamp(1),velocity_time_stamp(end)])
+xlim(ax_h(16),[velocity_time_stamp(1),velocity_time_stamp(end)])
+if t265
+    h(3) = plot(ax_h(14),odom_time_stamp,odom_velocity_body(:,1),'color',colors(4,:));
+    plot(ax_h(15),odom_time_stamp,odom_velocity_body(:,2),'color',colors(4,:));
+    plot(ax_h(16),odom_time_stamp,odom_velocity_body(:,3),'color',colors(4,:));
+    
+    legend(h,{'groundtruth','ODR','T265 VIO'},'Interpreter','latex')
+else
+    legend(h,{'groundtruth','ODR'},'Interpreter','latex')
+end
 
 % plot Weighted ODR_v5 ego-velocity estimate + groundtruth
-plot(ax_h(17),velocity_time_second,gt(:,1),'k','LineWidth',1);
-plot(ax_h(18),velocity_time_second,gt(:,2),'k','LineWidth',1);
-plot(ax_h(19),velocity_time_second,gt(:,3),'k','LineWidth',1);
-plot(ax_h(17),radar_time_second,vhat_odr_w(:,1),'color',colors(1,:));
-plot(ax_h(18),radar_time_second,vhat_odr_w(:,2),'color',colors(1,:));
-plot(ax_h(19),radar_time_second,vhat_odr_w(:,3),'color',colors(1,:));
-xlim(ax_h(17),[0,velocity_time_second(end)])
-xlim(ax_h(18),[0,velocity_time_second(end)])
-xlim(ax_h(19),[0,velocity_time_second(end)])
+h(1) = plot(ax_h(17),velocity_time_stamp,gt(:,1),'k','LineWidth',1);
+plot(ax_h(18),velocity_time_stamp,gt(:,2),'k','LineWidth',1);
+plot(ax_h(19),velocity_time_stamp,gt(:,3),'k','LineWidth',1);
+h(2) = plot(ax_h(17),radar_time_stamp,vhat_odr_w(:,1),'color',colors(1,:));
+plot(ax_h(18),radar_time_stamp,vhat_odr_w(:,2),'color',colors(1,:));
+plot(ax_h(19),radar_time_stamp,vhat_odr_w(:,3),'color',colors(1,:));
+xlim(ax_h(17),[velocity_time_stamp(1),velocity_time_stamp(end)])
+xlim(ax_h(18),[velocity_time_stamp(1),velocity_time_stamp(end)])
+xlim(ax_h(19),[velocity_time_stamp(1),velocity_time_stamp(end)])
+if t265
+    h(3) = plot(ax_h(17),odom_time_stamp,odom_velocity_body(:,1),'color',colors(4,:));
+    plot(ax_h(18),odom_time_stamp,odom_velocity_body(:,2),'color',colors(4,:));
+    plot(ax_h(19),odom_time_stamp,odom_velocity_body(:,3),'color',colors(4,:));
+    
+    legend(h,{'groundtruth','Weighted ODR','T265 VIO'},'Interpreter','latex')
+else
+    legend(h,{'groundtruth','Weighted ODR'},'Interpreter','latex')
+end
 
 % plot Const. Weight ODR_v5 + LSQNONLIN ego-velocity estimate + groundtruth
-plot(ax_h(20),velocity_time_second,gt(:,1),'k');
-plot(ax_h(21),velocity_time_second,gt(:,2),'k');
-plot(ax_h(22),velocity_time_second,gt(:,3),'k');
-plot(ax_h(20),radar_time_second,vhat_lsqnonlin(:,1),'color',colors(3,:));
-plot(ax_h(21),radar_time_second,vhat_lsqnonlin(:,2),'color',colors(3,:));
-plot(ax_h(22),radar_time_second,vhat_lsqnonlin(:,3),'color',colors(3,:));
-plot(ax_h(20),radar_time_second,vhat_odr(:,1),'color',colors(1,:));
-plot(ax_h(21),radar_time_second,vhat_odr(:,2),'color',colors(1,:));
-plot(ax_h(22),radar_time_second,vhat_odr(:,3),'color',colors(1,:));
-xlim(ax_h(20),[0,velocity_time_second(end)])
-xlim(ax_h(21),[0,velocity_time_second(end)])
-xlim(ax_h(22),[0,velocity_time_second(end)])
+h(1) = plot(ax_h(20),velocity_time_stamp,gt(:,1),'k');
+plot(ax_h(21),velocity_time_stamp,gt(:,2),'k');
+plot(ax_h(22),velocity_time_stamp,gt(:,3),'k');
+h(2) = plot(ax_h(20),radar_time_stamp,vhat_lsqnonlin(:,1),'color',colors(3,:));
+plot(ax_h(21),radar_time_stamp,vhat_lsqnonlin(:,2),'color',colors(3,:));
+plot(ax_h(22),radar_time_stamp,vhat_lsqnonlin(:,3),'color',colors(3,:));
+h(3) = plot(ax_h(20),radar_time_stamp,vhat_odr_w(:,1),'color',colors(1,:));
+plot(ax_h(21),radar_time_stamp,vhat_odr_w(:,2),'color',colors(1,:));
+plot(ax_h(22),radar_time_stamp,vhat_odr_w(:,3),'color',colors(1,:));
+xlim(ax_h(20),[velocity_time_stamp(1),velocity_time_stamp(end)])
+xlim(ax_h(21),[velocity_time_stamp(1),velocity_time_stamp(end)])
+xlim(ax_h(22),[velocity_time_stamp(1),velocity_time_stamp(end)])
+if t265
+    h(4) = plot(ax_h(20),odom_time_stamp,odom_velocity_body(:,1),'color',colors(4,:));
+    plot(ax_h(21),odom_time_stamp,odom_velocity_body(:,2),'color',colors(4,:));
+    plot(ax_h(22),odom_time_stamp,odom_velocity_body(:,3),'color',colors(4,:));
+    
+    legend(h,{'groundtruth','LSQNONLIN','Weighted ODR','T265 VIO'}, ...
+        'Interpreter','latex')
+else
+    legend(h,{'groundtruth','LSQNONLIN','Weighted ODR'},'Interpreter','latex')
+end
 
 K = 10;
 % plot weighted ODR + covariance bounds centered on estimate
-plot(ax_h(23),radar_time_second,vhat_odr_w(:,1),'k','LineWidth',1);
-plot(ax_h(23),radar_time_second,vhat_odr_w(:,1) + ...
+plot(ax_h(23),radar_time_stamp,vhat_odr_w(:,1),'k','LineWidth',1);
+plot(ax_h(23),radar_time_stamp,vhat_odr_w(:,1) + ...
     K*sigma_odr_w(:,1),'r--');
-plot(ax_h(23),radar_time_second,vhat_odr_w(:,1) - ...
+plot(ax_h(23),radar_time_stamp,vhat_odr_w(:,1) - ...
     K*sigma_odr_w(:,1),'r--');
-plot(ax_h(24),radar_time_second,vhat_odr_w(:,2),'k','LineWidth',1);
-plot(ax_h(24),radar_time_second,vhat_odr_w(:,2) + ...
+plot(ax_h(24),radar_time_stamp,vhat_odr_w(:,2),'k','LineWidth',1);
+plot(ax_h(24),radar_time_stamp,vhat_odr_w(:,2) + ...
     K*sigma_odr_w(:,2),'r--');
-plot(ax_h(24),radar_time_second,vhat_odr_w(:,2) - ...
+plot(ax_h(24),radar_time_stamp,vhat_odr_w(:,2) - ...
     K*sigma_odr_w(:,2),'r--');
-plot(ax_h(25),radar_time_second,vhat_odr_w(:,3),'k','LineWidth',1);
-plot(ax_h(25),radar_time_second,vhat_odr_w(:,3) + ...
+plot(ax_h(25),radar_time_stamp,vhat_odr_w(:,3),'k','LineWidth',1);
+plot(ax_h(25),radar_time_stamp,vhat_odr_w(:,3) + ...
     K*sigma_odr_w(:,3),'r--');
 plot(ax_h(25),radar_time_second,vhat_odr_w(:,3) - ...
     K*sigma_odr_w(:,3),'r--');
-xlim(ax_h(23), [0, radar_time_second(end)]);
-xlim(ax_h(24), [0, radar_time_second(end)]);
-xlim(ax_h(25), [0, radar_time_second(end)]);
+xlim(ax_h(23), [radar_time_stamp(1), radar_time_stamp(end)]);
+xlim(ax_h(24), [radar_time_stamp(1), radar_time_stamp(end)]);
+xlim(ax_h(25), [radar_time_stamp(1), radar_time_stamp(end)]);
 hdl = legend(ax_h(23),'weighted ODR\_v5','2$\sigma$ envelope');
 set(hdl,'Interpreter','latex','Location','northwest')
 
 % plot weighted ODR + covariance bounds centered at zero
-plot(ax_h(26),radar_time_second,vhat_odr_w(:,1),'k','LineWidth',1);
-plot(ax_h(26),radar_time_second,K*sigma_odr_w(:,1),'r--');
-plot(ax_h(26),radar_time_second,-K*sigma_odr_w(:,1),'r--');
-plot(ax_h(27),radar_time_second,vhat_odr_w(:,2),'k','LineWidth',1);
-plot(ax_h(27),radar_time_second,K*sigma_odr_w(:,2),'r--');
-plot(ax_h(27),radar_time_second,-K*sigma_odr_w(:,2),'r--');
-plot(ax_h(28),radar_time_second,vhat_odr_w(:,3),'k','LineWidth',1);
-plot(ax_h(28),radar_time_second,K*sigma_odr_w(:,3),'r--');
-plot(ax_h(28),radar_time_second,-K*sigma_odr_w(:,3),'r--');
-xlim(ax_h(26), [0, radar_time_second(end)]);
-xlim(ax_h(27), [0, radar_time_second(end)]);
-xlim(ax_h(28), [0, radar_time_second(end)]);
+plot(ax_h(26),radar_time_stamp,vhat_odr_w(:,1),'k','LineWidth',1);
+plot(ax_h(26),radar_time_stamp,K*sigma_odr_w(:,1),'r--');
+plot(ax_h(26),radar_time_stamp,-K*sigma_odr_w(:,1),'r--');
+plot(ax_h(27),radar_time_stamp,vhat_odr_w(:,2),'k','LineWidth',1);
+plot(ax_h(27),radar_time_stamp,K*sigma_odr_w(:,2),'r--');
+plot(ax_h(27),radar_time_stamp,-K*sigma_odr_w(:,2),'r--');
+plot(ax_h(28),radar_time_stamp,vhat_odr_w(:,3),'k','LineWidth',1);
+plot(ax_h(28),radar_time_stamp,K*sigma_odr_w(:,3),'r--');
+plot(ax_h(28),radar_time_stamp,-K*sigma_odr_w(:,3),'r--');
+xlim(ax_h(26), [radar_time_stamp(1), radar_time_stamp(end)]);
+xlim(ax_h(27), [radar_time_stamp(1), radar_time_stamp(end)]);
+xlim(ax_h(28), [radar_time_stamp(1), radar_time_stamp(end)]);
 hdl = legend(ax_h(26),'weighted ODR\_v5','2$\sigma$ envelope');
 set(hdl,'Interpreter','latex','Location','northwest')
 
-return;
+if t265
+    
+    
+end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Not using these plots anymore
 
 figure(20)
-plot(radar_time_second,vecnorm(vhat_mlesac')); hold on;
+plot(radar_time_stamp,vecnorm(vhat_mlesac')); hold on;
 ylabel('vector norm','Interpreter','latex')
 yyaxis right
-scatter(radar_time_second,targets(:,3),sz,'filled')
+scatter(radar_time_stamp,targets(:,3),sz,'filled')
 ylabel('inlier targets','Interpreter','latex')
-xlim([0, radar_time_second(end)]);
+xlim([radar_time_stamp(1), radar_time_stamp(end)]);
 xlabel('time [s]','Interpreter','latex');
 title('MLESAC Velocity Vector Norm','Interpreter','latex');
 
 figure(21)
-plot(radar_time_second,vecnorm(vhat_odr_w')); hold on;
+plot(radar_time_stamp,vecnorm(vhat_odr_w')); hold on;
 ylabel('vector norm','Interpreter','latex')
 yyaxis right
-scatter(radar_time_second,targets(:,3),sz,'filled')
+scatter(radar_time_stamp,targets(:,3),sz,'filled')
 ylabel('inlier targets','Interpreter','latex')
-xlim([0, radar_time_second(end)]);
+xlim([radar_time_stamp(1), radar_time_stamp(end)]);
 xlabel('time [s]','Interpreter','latex');
 title('Weighted ODR Velocity Vector Norm','Interpreter','latex');
+
+return;
 
 figure(22)
 scatter(radar_time_second,targets(:,1),sz,'filled'); hold on;

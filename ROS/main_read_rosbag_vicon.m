@@ -20,7 +20,7 @@ clear;
 
 % Input file information
 input_directory   = '/home/carl/Data/icra_2020/radar-quad/uas_flight_space/2019-09-13/bagfiles/';
-filename_root     = 'complex_light-max_run3';
+filename_root     = 'complex_light-max_run2';
 input_suffix      = '.bag';
 
 % Output file information
@@ -158,7 +158,7 @@ radar_messages = readMessages(radar_bag);
 % pre-define the output variables
 [m,~]    = size(radar_messages);
 
-max_num_targets   = 350;
+max_num_targets   = 160;
 
 radar_x           = ones(m,max_num_targets) .* NaN;
 radar_y           = ones(m,max_num_targets) .* NaN;
@@ -337,14 +337,13 @@ odom_bag = select(bag, 'Topic', t265_odom_topic);
 
 %% Get the time stamp for all Pose messages
 
-time_stamp_table  = pose_bag.MessageList(:,1);
+time_stamp_table = odom_bag.MessageList(:,1);
 odom_time_stamp  = time_stamp_table{:,1};
 odom_time_second = odom_time_stamp - odom_time_stamp(1);
 
 %% Read all Pose messages
 
 odom_messages = readMessages(odom_bag);
-return;
 
 %% Display the contents of one pose message cell
 
@@ -409,19 +408,30 @@ odom_orientation_w        = ones(m,1) .* NaN;
 odom_velocity_linear_x    = ones(m,1) .* NaN;
 odom_velocity_linear_y    = ones(m,1) .* NaN;
 odom_velocity_linear_z    = ones(m,1) .* NaN;
+odom_velocity_angular_x   = ones(m,1) .* NaN;
+odom_velocity_angular_y   = ones(m,1) .* NaN;
+odom_velocity_angular_z   = ones(m,1) .* NaN;
 
 %%% STOPPED MAKING EDITS HERE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % process each meassage
 for r = 1:m
-   pose_position_x(r) = pose_messages{r}.Pose.Position.X;
-   pose_position_y(r) = pose_messages{r}.Pose.Position.Y;
-   pose_position_z(r) = pose_messages{r}.Pose.Position.Z;
+   odom_position_x(r) = odom_messages{r}.Pose.Pose.Position.X;
+   odom_position_y(r) = odom_messages{r}.Pose.Pose.Position.Y;
+   odom_position_z(r) = odom_messages{r}.Pose.Pose.Position.Z;
    
-   pose_orientation_x(r) = pose_messages{r}.Pose.Orientation.X;
-   pose_orientation_y(r) = pose_messages{r}.Pose.Orientation.Y;
-   pose_orientation_z(r) = pose_messages{r}.Pose.Orientation.Z;
-   pose_orientation_w(r) = pose_messages{r}.Pose.Orientation.W;
+   odom_orientation_x(r) = odom_messages{r}.Pose.Pose.Orientation.X;
+   odom_orientation_y(r) = odom_messages{r}.Pose.Pose.Orientation.Y;
+   odom_orientation_z(r) = odom_messages{r}.Pose.Pose.Orientation.Z;
+   odom_orientation_w(r) = odom_messages{r}.Pose.Pose.Orientation.W;
+   
+   odom_velocity_linear_x(r) = odom_messages{r}.Twist.Twist.Linear.X;
+   odom_velocity_linear_y(r) = odom_messages{r}.Twist.Twist.Linear.Y;
+   odom_velocity_linear_z(r) = odom_messages{r}.Twist.Twist.Linear.Z;
+   
+   odom_velocity_angular_x(r) = odom_messages{r}.Twist.Twist.Angular.X;
+   odom_velocity_angular_y(r) = odom_messages{r}.Twist.Twist.Angular.Y;
+   odom_velocity_angular_z(r) = odom_messages{r}.Twist.Twist.Angular.Z;
    
 end % end for r loop
 
@@ -443,11 +453,13 @@ save(output_filename, ...
      'twist_time_stamp','twist_time_second', ...
      'twist_linear_x','twist_linear_y','twist_linear_z','twist_angular_x','twist_angular_y','twist_angular_z', ...
      'pose_time_stamp','pose_time_second', ...
-     'pose_position_x', 'pose_position_y', 'pose_position_z', ...
-     'pose_orientation_x', 'pose_orientation_y', 'pose_orientation_z', 'pose_orientation_w', ...
+     'pose_position_x','pose_position_y','pose_position_z', ...
+     'pose_orientation_x','pose_orientation_y','pose_orientation_z','pose_orientation_w', ...
+     'odom_time_stamp','odom_time_second', ...
      'odom_position_x', 'odom_position_y', 'odom_position_z', ...
-     'odom_orientation_x', 'odom_orientation_y', 'odom_orientation_z', 'odom_orientation_w', ...
-     'odom_velocity_linear_x', 'odom_velocity_linear_y', 'odom_velocity_linear_z');
+     'odom_orientation_x','odom_orientation_y','odom_orientation_z','odom_orientation_w', ...
+     'odom_velocity_linear_x','odom_velocity_linear_y','odom_velocity_linear_z', ...
+     'odom_velocity_angular_x','odom_velocity_angular_y','odom_velocity_angular_z');
      
 return;
 

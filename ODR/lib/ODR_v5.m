@@ -102,8 +102,8 @@ while norm(s) > converge_thres
     eps = doppler_predicted - radar_doppler;
     
     % update the (nX1) and (nmx1) elements of G
-    g1 = weights.*eps;
-    g2 = D*delta;
+%     g1 = weights.*eps;
+%     g2 = D*delta;
     
     % form the elements of the linear least squares problem
     Gbar = M*G;

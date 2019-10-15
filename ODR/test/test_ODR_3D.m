@@ -114,21 +114,21 @@ data = [radar_doppler(inlier_idx), radar_azimuth(inlier_idx), ...
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % TESTING
 
-tic
-delta_theta = normrnd(0,sigma(1),[1,Ninliers]); 
-delta_phi = normrnd(0,sigma(2),[1,Ninliers]);
-delta0 = [delta_theta; delta_phi];
-delta0 = delta0(:);
-[ model_odr5_t, ~, ~, iter5_t ] = ODR_v5_test( data, d, model_mlesac, ...
-    sigma, weights, s, converge_thres, max_iter, get_covar, delta0 );
-time_odr5_t = toc;
-
-% get 'old' ODR_3D estimate as comparison
-tic
-[ model_odr_3d, ~, ~, iter_3d ] = ODR_3D( radar_doppler(inlier_idx)', ...
-    radar_azimuth(inlier_idx)', radar_elevation(inlier_idx)', d, model_mlesac, ...
-    [delta_theta'; delta_phi'], weights, converge_thres );
-time_odr_3d = toc;
+% tic
+% delta_theta = normrnd(0,sigma(1),[1,Ninliers]); 
+% delta_phi = normrnd(0,sigma(2),[1,Ninliers]);
+% delta0 = [delta_theta; delta_phi];
+% delta0 = delta0(:);
+% [ model_odr5_t, ~, ~, iter5_t ] = ODR_v5_test( data, d, model_mlesac, ...
+%     sigma, weights, s, converge_thres, max_iter, get_covar, delta0 );
+% time_odr5_t = toc;
+% 
+% % get 'old' ODR_3D estimate as comparison
+% tic
+% [ model_odr_3d, ~, ~, iter_3d ] = ODR_3D( radar_doppler(inlier_idx)', ...
+%     radar_azimuth(inlier_idx)', radar_elevation(inlier_idx)', d, model_mlesac, ...
+%     [delta_theta'; delta_phi'], weights, converge_thres );
+% time_odr_3d = toc;
         
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -158,9 +158,15 @@ time_odr4 = toc;
 
 % get 3D Orthogonal Distance Regression (ODR_v5) estimate
 tic
-[ model_odr5, beta, cov, iter5 ] = ODR_v5( data, d, model_mlesac, ...
+[ model_odr5, beta5, cov, iter5 ] = ODR_v5( data, d, model_mlesac, ...
     sigma, weights, s, converge_thres, max_iter, get_covar );
 time_odr5 = toc;
+
+% get 3D Orthogonal Distance Regression (ODR_v5) estimate
+tic
+[ model_odr6, beta6, ~, iter6 ] = ODR_v6( data, d, model_mlesac, ...
+    sigma, weights, ones(3,1), 0.5, 100, get_covar );
+time_odr6 = toc;
 
 % get LSQNONLIN (OLS) solution
 
@@ -189,9 +195,10 @@ RMSE_odr2      = sqrt(mean((velocity - model_odr2).^2));
 RMSE_odr3      = sqrt(mean((velocity - model_odr3).^2));
 RMSE_odr4      = sqrt(mean((velocity - model_odr4).^2));
 RMSE_odr5      = sqrt(mean((velocity - model_odr5).^2));
+RMSE_odr6      = sqrt(mean((velocity - model_odr6).^2));
 
-RMSE_odr5_t     = sqrt(mean((velocity - model_odr5_t).^2));
-RMSE_odr_3d     = sqrt(mean((velocity - model_odr_3d).^2));
+% RMSE_odr5_t     = sqrt(mean((velocity - model_odr5_t).^2));
+% RMSE_odr_3d     = sqrt(mean((velocity - model_odr_3d).^2));
 
 %% Algorithm Evaluation
 
@@ -213,8 +220,9 @@ fprintf('ODR_v2\t\t= %.4f\n', RMSE_odr2);
 fprintf('ODR_v3\t\t= %.4f\n', RMSE_odr3);
 fprintf('ODR_v4\t\t= %.4f\n', RMSE_odr4);
 fprintf('ODR_v5\t\t= %.4f\n', RMSE_odr5);
-fprintf('ODR_v5_test\t= %.4f\n', RMSE_odr5_t);
-fprintf('ODR_3D\t\t= %.4f\n', RMSE_odr_3d);
+fprintf('ODR_v6\t\t= %.4f\n', RMSE_odr6);
+% fprintf('ODR_v5_test\t= %.4f\n', RMSE_odr5_t);
+% fprintf('ODR_3D\t\t= %.4f\n', RMSE_odr_3d);
 
 fprintf('\nAlgorithm Evaluation - Execution Time [milliseconds]\n');
 fprintf('Matlab MLESAC\t= %.4f\n', 1e3*time_mlesac);
@@ -225,24 +233,27 @@ fprintf('ODR_v2\t\t= %.4f\n', 1e3*time_odr2);
 fprintf('ODR_v3\t\t= %.4f\n', 1e3*time_odr3);
 fprintf('ODR_v4\t\t= %.4f\n', 1e3*time_odr4);
 fprintf('ODR_v5\t\t= %.4f\n', 1e3*time_odr5);
-fprintf('ODR_v5_test\t= %.4f\n', 1e3*time_odr5_t);
-fprintf('ODR_3D\t\t= %.4f\n', 1e3*time_odr_3d);
+fprintf('ODR_v6\t\t= %.4f\n', 1e3*time_odr6);
+% fprintf('ODR_v5_test\t= %.4f\n', 1e3*time_odr5_t);
+% fprintf('ODR_3D\t\t= %.4f\n', 1e3*time_odr_3d);
 
 fprintf('\nAlgorithm Evaluation - Misc.\n');
 fprintf('Matlab MLESAC Inliers\t= %d\n', Ninliers);
-% fprintf('\t\t ODR_v1\t ODR_v2\t ODR_v3\t ODR_v4\t ODR_v5\n');
-% fprintf('ODR Iterations\t %d\t %d\t %d\t %d\t %d\n', iter1, iter2, ...
-%     iter3, iter4, iter5);
+fprintf('\t\t ODR_v1\t ODR_v2\t ODR_v3\t ODR_v4\t ODR_v5\t ODR_v6\n');
+fprintf('ODR Iterations\t %d\t %d\t %d\t %d\t %d\t %d\n', iter1, iter2, ...
+    iter3, iter4, iter5, iter6);
 
-fprintf('\t\t ODR_v1\t ODR_v2\t ODR_v3\t ODR_v4\t ODR_v5\t ODR_v5t\t ODR_3D\n');
-fprintf('ODR Iterations\t %d\t %d\t %d\t %d\t %d\t %d\t\t %d\n', iter1, iter2, ...
-    iter3, iter4, iter5, iter5_t, iter_3d);
+% fprintf('\t\t ODR_v1\t ODR_v2\t ODR_v3\t ODR_v4\t ODR_v5\t ODR_v5t\t ODR_3D\n');
+% fprintf('ODR Iterations\t %d\t %d\t %d\t %d\t %d\t %d\t\t %d\n', iter1, iter2, ...
+%     iter3, iter4, iter5, iter5_t, iter_3d);
 
+return;
 
 %% Plot Results
 
 % plot results from specific version of ODR
 model_odr = model_odr5;
+beta      = beta5;
 
 load('colors.mat')
 
