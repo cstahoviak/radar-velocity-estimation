@@ -105,10 +105,10 @@ sigma = [sigma_theta; sigma_phi];
 d = [sigma_vr/sigma_theta; sigma_vr/sigma_phi];
 
 % scaling factor for step s - ODR_v5
-s= 10*ones(sampleSize,1);
+s = 2*ones(sampleSize,1);
 
 converge_thres = 0.0005;
-max_iter = 25;
+max_iter = 50;
 get_covar = true;
 
 %% Get Vicon Body-Frame Velocities - Central Diff + Lowpass Filter
@@ -642,44 +642,62 @@ xlim(ax_h(18),[0,velocity_time_second(end)])
 xlim(ax_h(19),[0,velocity_time_second(end)])
 
 % plot Const. Weight ODR_v5 + LSQNONLIN ego-velocity estimate + groundtruth
-plot(ax_h(23),velocity_time_second,gt(:,1),'k');
-plot(ax_h(24),velocity_time_second,gt(:,2),'k');
-plot(ax_h(25),velocity_time_second,gt(:,3),'k');
-plot(ax_h(23),radar_time_second,vhat_lsqnonlin(:,1),'color',colors(3,:));
-plot(ax_h(24),radar_time_second,vhat_lsqnonlin(:,2),'color',colors(3,:));
-plot(ax_h(25),radar_time_second,vhat_lsqnonlin(:,3),'color',colors(3,:));
-plot(ax_h(23),radar_time_second,vhat_odr(:,1),'color',colors(1,:));
-plot(ax_h(24),radar_time_second,vhat_odr(:,2),'color',colors(1,:));
-plot(ax_h(25),radar_time_second,vhat_odr(:,3),'color',colors(1,:));
-xlim(ax_h(23),[0,velocity_time_second(end)])
-xlim(ax_h(24),[0,velocity_time_second(end)])
-xlim(ax_h(25),[0,velocity_time_second(end)])
+plot(ax_h(20),velocity_time_second,gt(:,1),'k');
+plot(ax_h(21),velocity_time_second,gt(:,2),'k');
+plot(ax_h(22),velocity_time_second,gt(:,3),'k');
+plot(ax_h(20),radar_time_second,vhat_lsqnonlin(:,1),'color',colors(3,:));
+plot(ax_h(21),radar_time_second,vhat_lsqnonlin(:,2),'color',colors(3,:));
+plot(ax_h(22),radar_time_second,vhat_lsqnonlin(:,3),'color',colors(3,:));
+plot(ax_h(20),radar_time_second,vhat_odr(:,1),'color',colors(1,:));
+plot(ax_h(21),radar_time_second,vhat_odr(:,2),'color',colors(1,:));
+plot(ax_h(22),radar_time_second,vhat_odr(:,3),'color',colors(1,:));
+xlim(ax_h(20),[0,velocity_time_second(end)])
+xlim(ax_h(21),[0,velocity_time_second(end)])
+xlim(ax_h(22),[0,velocity_time_second(end)])
+
+K = 10;
+% plot weighted ODR + covariance bounds centered on estimate
+plot(ax_h(23),radar_time_second,vhat_odr_w(:,1),'k','LineWidth',1);
+plot(ax_h(23),radar_time_second,vhat_odr_w(:,1) + ...
+    K*sigma_odr_w(:,1),'r--');
+plot(ax_h(23),radar_time_second,vhat_odr_w(:,1) - ...
+    K*sigma_odr_w(:,1),'r--');
+plot(ax_h(24),radar_time_second,vhat_odr_w(:,2),'k','LineWidth',1);
+plot(ax_h(24),radar_time_second,vhat_odr_w(:,2) + ...
+    K*sigma_odr_w(:,2),'r--');
+plot(ax_h(24),radar_time_second,vhat_odr_w(:,2) - ...
+    K*sigma_odr_w(:,2),'r--');
+plot(ax_h(25),radar_time_second,vhat_odr_w(:,3),'k','LineWidth',1);
+plot(ax_h(25),radar_time_second,vhat_odr_w(:,3) + ...
+    K*sigma_odr_w(:,3),'r--');
+plot(ax_h(25),radar_time_second,vhat_odr_w(:,3) - ...
+    K*sigma_odr_w(:,3),'r--');
+xlim(ax_h(23), [0, radar_time_second(end)]);
+xlim(ax_h(24), [0, radar_time_second(end)]);
+xlim(ax_h(25), [0, radar_time_second(end)]);
+hdl = legend(ax_h(23),'weighted ODR\_v5','2$\sigma$ envelope');
+set(hdl,'Interpreter','latex','Location','northwest')
+
+% plot weighted ODR + covariance bounds centered at zero
+plot(ax_h(26),radar_time_second,vhat_odr_w(:,1),'k','LineWidth',1);
+plot(ax_h(26),radar_time_second,K*sigma_odr_w(:,1),'r--');
+plot(ax_h(26),radar_time_second,-K*sigma_odr_w(:,1),'r--');
+plot(ax_h(27),radar_time_second,vhat_odr_w(:,2),'k','LineWidth',1);
+plot(ax_h(27),radar_time_second,K*sigma_odr_w(:,2),'r--');
+plot(ax_h(27),radar_time_second,-K*sigma_odr_w(:,2),'r--');
+plot(ax_h(28),radar_time_second,vhat_odr_w(:,3),'k','LineWidth',1);
+plot(ax_h(28),radar_time_second,K*sigma_odr_w(:,3),'r--');
+plot(ax_h(28),radar_time_second,-K*sigma_odr_w(:,3),'r--');
+xlim(ax_h(26), [0, radar_time_second(end)]);
+xlim(ax_h(27), [0, radar_time_second(end)]);
+xlim(ax_h(28), [0, radar_time_second(end)]);
+hdl = legend(ax_h(26),'weighted ODR\_v5','2$\sigma$ envelope');
+set(hdl,'Interpreter','latex','Location','northwest')
 
 return;
 
-K = 10;
-% plot weighted ODR + covariance bounds
-plot(ax_h(16),radar_time_second,vhat_odr_w(:,1),'k','LineWidth',1);
-plot(ax_h(16),radar_time_second,vhat_odr_w(:,1) + ...
-    K*sigma_odr_w(:,1),'r--');
-plot(ax_h(16),radar_time_second,vhat_odr_w(:,1) - ...
-    K*sigma_odr_w(:,1),'r--');
-plot(ax_h(17),radar_time_second,vhat_odr_w(:,2),'k','LineWidth',1);
-plot(ax_h(17),radar_time_second,vhat_odr_w(:,2) + ...
-    K*sigma_odr_w(:,2),'r--');
-plot(ax_h(17),radar_time_second,vhat_odr_w(:,2) - ...
-    K*sigma_odr_w(:,2),'r--');
-plot(ax_h(18),radar_time_second,vhat_odr_w(:,3),'k','LineWidth',1);
-plot(ax_h(18),radar_time_second,vhat_odr_w(:,3) + ...
-    K*sigma_odr_w(:,3),'r--');
-plot(ax_h(18),radar_time_second,vhat_odr_w(:,3) - ...
-    K*sigma_odr_w(:,3),'r--');
-% ylim(ax_h(14),[-1,1.5]); ylim(ax_h(15),[-1,1]);
-xlim(ax_h(16), [0, radar_time_second(end)]);
-xlim(ax_h(17), [0, radar_time_second(end)]);
-xlim(ax_h(18), [0, radar_time_second(end)]);
-hdl = legend(ax_h(16),'weighted ODR','2$\sigma$ envelope');
-set(hdl,'Interpreter','latex','Location','northwest')
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Not using these plots anymore
 
 figure(20)
 plot(radar_time_second,vecnorm(vhat_mlesac')); hold on;

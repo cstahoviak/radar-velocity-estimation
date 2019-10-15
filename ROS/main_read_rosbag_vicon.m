@@ -9,6 +9,9 @@
 % x = in front of sensor
 % y = + to the left of sensor, - to the right of sensor
 
+clc;
+clear;
+
 %% Define the location of input and output files
 
 % ===========================================
@@ -16,21 +19,21 @@
 % ===========================================
 
 % Input file information
-input_directory   = '/home/carl/Data/subT/Fleming/fleming_radar_2019-05-17/cfar-800/';
-filename_root     = 'cfar-800_10Hz_run2';
+input_directory   = '/home/carl/Data/icra_2020/radar-quad/uas_flight_space/2019-09-13/bagfiles/';
+filename_root     = 'complex_light-max_run3';
 input_suffix      = '.bag';
 
 % Output file information
-output_directory  = '/home/carl/Data/subT/Fleming/fleming_radar_2019-05-17/mat_files/';
+output_directory  = '/home/carl/Data/icra_2020/radar-quad/uas_flight_space/2019-09-13/mat_files/';
 output_suffix     = '.mat';
 
 % topic information
 radar_topic       = '/mmWaveDataHdl/RScan';
 % radar_fwd_topic   = '/radar_fwd/mmWaveDataHdl/RScan';
 % radar_lat_topic   = '/radar_lat/mmWaveDataHdl/RScan';
-vrpn_twist_topic  = '/vrpn_client_node/A01Radar/twist';
 vrpn_pose_topic   = '/vrpn_client_node/A01Radar/pose';
-odom_topic        = '/odom';
+vrpn_twist_topic  = '/vrpn_client_node/A01Radar/twist';
+t265_odom_topic   = '/camera/odom/sample';
 tf_topic          = '/tf';
 
 % ============================================
@@ -101,7 +104,7 @@ bag.MessageList;
 %% Get the radar messages
 % =======================
 
-radar_bag   = select(bag, 'Topic', radar_topic);
+radar_bag = select(bag, 'Topic', radar_topic);
 % The properties are:
 %            FilePath: 'C:\Projects_2018_10\DARPA\Fleming_Vicon_2018_1107\bag_files\1642_static_RL_cfar_5120.bag'
 %           StartTime: 1.5416e+09
@@ -187,191 +190,10 @@ for r = 1:m
    
 end % end for r loop
 
-% %% Get the radar_fwd messages
-% % =======================
-% 
-% radar_fwd_bag   = select(bag, 'Topic', radar_fwd_topic);
-% % The properties are:
-% %            FilePath: 'C:\Projects_2018_10\DARPA\Fleming_Vicon_2018_1107\bag_files\1642_static_RL_cfar_5120.bag'
-% %           StartTime: 1.5416e+09
-% %             EndTime: 1.5416e+09
-% %         NumMessages: 98
-% %     AvailableTopics: [1x3 table]
-% %     AvailableFrames: {6x1 cell}
-% %         MessageList: [98x4 table]
-% 
-% %% Get the time stamp for all radar messages
-% 
-% time_stamp_table  = radar_fwd_bag.MessageList(:,1);
-% radar_fwd_time_stamp  = time_stamp_table{:,1};
-% radar_fwd_time_second = radar_fwd_time_stamp - radar_fwd_time_stamp(1);
-% 
-% %% Read all messages
-% 
-% radar_fwd_messages = readMessages(radar_fwd_bag);
-% %   98�1 cell array
-% % 
-% %     {1�1 PointCloud2}
-% %     {1�1 PointCloud2}
-% %     {1�1 PointCloud2}
-% %     ...
-% 
-% %% Display the contents of one radar message cell
-% 
-% %radar_messages{1}
-% %   ROS PointCloud2 message with properties:
-% % 
-% %     PreserveStructureOnRead: 0
-% %                 MessageType: 'sensor_msgs/PointCloud2'
-% %                      Header: [1x1 Header]
-% %                      Height: 1
-% %                       Width: 75
-% %                 IsBigendian: 0
-% %                   PointStep: 32
-% %                     RowStep: 2400
-% %                     IsDense: 1
-% %                      Fields: [6x1 PointField]
-% %                        Data: [2400x1 uint8]
-% 
-% %% Display the radar Field Names
-% 
-% %radar_messages{1}.Fields.Name
-% 
-% % ans =   'x' 'y' 'z' 'intensity' 'range' 'doppler'
-% 
-% %% Get all radar measurements, for all variables, and for all messages
-% 
-% % pre-define the output variables
-% [m,~]    = size(radar_fwd_messages);
-% 
-% max_num_targets   = 100;
-% 
-% radar_fwd_x           = ones(m,max_num_targets) .* NaN;
-% radar_fwd_y           = ones(m,max_num_targets) .* NaN;
-% radar_fwd_z           = ones(m,max_num_targets) .* NaN;
-% radar_fwd_intensity   = ones(m,max_num_targets) .* NaN;
-% radar_fwd_range       = ones(m,max_num_targets) .* NaN;
-% radar_fwd_doppler     = ones(m,max_num_targets) .* NaN;
-% 
-% % process each meassage
-% 
-% for r = 1:m
-%    
-%    temp_x           = readField(radar_fwd_messages{r}, 'x');
-%    temp_y           = readField(radar_fwd_messages{r}, 'y');
-%    temp_z           = readField(radar_fwd_messages{r}, 'z');
-%    temp_intensity   = readField(radar_fwd_messages{r}, 'intensity');
-%    temp_range       = readField(radar_fwd_messages{r}, 'range');
-%    temp_doppler     = readField(radar_fwd_messages{r}, 'doppler');
-%    
-%    % put these values into the master matrices
-%    n = length(temp_x);
-% 
-%    radar_fwd_x(r,1:n)          = temp_x;
-%    radar_fwd_y(r,1:n)          = temp_y;
-%    radar_fwd_z(r,1:n)          = temp_z;
-%    radar_fwd_intensity(r,1:n)  = temp_intensity;
-%    radar_fwd_range(r,1:n)      = temp_range;
-%    radar_fwd_doppler(r,1:n)    = temp_doppler;
-%    
-% end % end for r loop
-% 
-% %% Get the radar_lat messages
-% % =======================
-% 
-% radar_lat_bag   = select(bag, 'Topic', radar_lat_topic);
-% % The properties are:
-% %            FilePath: 'C:\Projects_2018_10\DARPA\Fleming_Vicon_2018_1107\bag_files\1642_static_RL_cfar_5120.bag'
-% %           StartTime: 1.5416e+09
-% %             EndTime: 1.5416e+09
-% %         NumMessages: 98
-% %     AvailableTopics: [1x3 table]
-% %     AvailableFrames: {6x1 cell}
-% %         MessageList: [98x4 table]
-% 
-% %% Get the time stamp for all radar messages
-% 
-% time_stamp_table  = radar_lat_bag.MessageList(:,1);
-% radar_lat_time_stamp  = time_stamp_table{:,1};
-% radar_lat_time_second = radar_lat_time_stamp - radar_lat_time_stamp(1);
-% 
-% %% Read all messages
-% 
-% radar_lat_messages = readMessages(radar_lat_bag);
-% %   98�1 cell array
-% % 
-% %     {1�1 PointCloud2}
-% %     {1�1 PointCloud2}
-% %     {1�1 PointCloud2}
-% %     ...
-% 
-% %% Display the contents of one radar message cell
-% 
-% %radar_messages{1}
-% %   ROS PointCloud2 message with properties:
-% % 
-% %     PreserveStructureOnRead: 0
-% %                 MessageType: 'sensor_msgs/PointCloud2'
-% %                      Header: [1x1 Header]
-% %                      Height: 1
-% %                       Width: 75
-% %                 IsBigendian: 0
-% %                   PointStep: 32
-% %                     RowStep: 2400
-% %                     IsDense: 1
-% %                      Fields: [6x1 PointField]
-% %                        Data: [2400x1 uint8]
-% 
-% %% Display the radar Field Names
-% 
-% %radar_messages{1}.Fields.Name
-% 
-% % ans =   'x' 'y' 'z' 'intensity' 'range' 'doppler'
-% 
-% %% Get all radar measurements, for all variables, and for all messages
-% 
-% % pre-define the output variables
-% [m,~]    = size(radar_lat_messages);
-% 
-% max_num_targets   = 100;
-% 
-% radar_lat_x           = ones(m,max_num_targets) .* NaN;
-% radar_lat_y           = ones(m,max_num_targets) .* NaN;
-% radar_lat_z           = ones(m,max_num_targets) .* NaN;
-% radar_lat_intensity   = ones(m,max_num_targets) .* NaN;
-% radar_lat_range       = ones(m,max_num_targets) .* NaN;
-% radar_lat_doppler     = ones(m,max_num_targets) .* NaN;
-% 
-% % process each meassage
-% 
-% for r = 1:m
-%    
-%    temp_x           = readField(radar_lat_messages{r}, 'x');
-%    temp_y           = readField(radar_lat_messages{r}, 'y');
-%    temp_z           = readField(radar_lat_messages{r}, 'z');
-%    temp_intensity   = readField(radar_lat_messages{r}, 'intensity');
-%    temp_range       = readField(radar_lat_messages{r}, 'range');
-%    temp_doppler     = readField(radar_lat_messages{r}, 'doppler');
-%    
-%    % put these values into the master matrices
-%    n = length(temp_x);
-% 
-%    radar_lat_x(r,1:n)          = temp_x;
-%    radar_lat_y(r,1:n)          = temp_y;
-%    radar_lat_z(r,1:n)          = temp_z;
-%    radar_lat_intensity(r,1:n)  = temp_intensity;
-%    radar_lat_range(r,1:n)      = temp_range;
-%    radar_lat_doppler(r,1:n)    = temp_doppler;
-%    
-% end % end for r loop
-
 %% Get the Vicon Twist messages
 % =======================
 
-twist_bag   = select(bag, 'Topic', vrpn_twist_topic);
-
-% The properties are:
-
+twist_bag = select(bag, 'Topic', vrpn_twist_topic);
 
 %% Get the time stamp for all Twist messages
 
@@ -382,7 +204,6 @@ twist_time_second = twist_time_stamp - twist_time_stamp(1);
 %% Read all Twist messages
 
 twist_messages = readMessages(twist_bag);
-
 
 %% Display the contents of one twist message cell
 
@@ -437,10 +258,7 @@ end % end for r loop
 %% Get the Vicon Pose messages
 % =======================
 
-pose_bag   = select(bag, 'Topic', vrpn_pose_topic);
-
-% The properties are:
-
+pose_bag = select(bag, 'Topic', vrpn_pose_topic);
 
 %% Get the time stamp for all Pose messages
 
@@ -451,9 +269,6 @@ pose_time_second = pose_time_stamp - pose_time_stamp(1);
 %% Read all Pose messages
 
 pose_messages = readMessages(pose_bag);
-
-% return;
-
 
 %% Display the contents of one pose message cell
 
@@ -515,6 +330,101 @@ for r = 1:m
    
 end % end for r loop
 
+%% Get the T265 Odom messages
+% =======================
+
+odom_bag = select(bag, 'Topic', t265_odom_topic);
+
+%% Get the time stamp for all Pose messages
+
+time_stamp_table  = pose_bag.MessageList(:,1);
+odom_time_stamp  = time_stamp_table{:,1};
+odom_time_second = odom_time_stamp - odom_time_stamp(1);
+
+%% Read all Pose messages
+
+odom_messages = readMessages(odom_bag);
+return;
+
+%% Display the contents of one pose message cell
+
+% odom_messages{1}
+%   ROS Odometry message with properties:
+% 
+%      MessageType: 'nav_msgs/Odometry'
+%           Header: [1×1 Header]
+%     ChildFrameId: 'camera_pose_frame'
+%             Pose: [1×1 PoseWithCovariance]
+%            Twist: [1×1 TwistWithCovariance]
+
+% odom_messages{1}.Pose
+%   ROS PoseWithCovariance message with properties:
+% 
+%     MessageType: 'geometry_msgs/PoseWithCovariance'
+%            Pose: [1×1 Pose]
+%      Covariance: [36×1 double]
+
+% odom_messages{1}.Pose.Pose
+%   ROS Pose message with properties:
+% 
+%     MessageType: 'geometry_msgs/Pose'
+%        Position: [1×1 Point]
+%     Orientation: [1×1 Quaternion]
+
+% odom_messages{1}.Twist
+%   ROS TwistWithCovariance message with properties:
+% 
+%     MessageType: 'geometry_msgs/TwistWithCovariance'
+%           Twist: [1×1 Twist]
+%      Covariance: [36×1 double]
+
+% odom_messages{1}.Twist.Twist
+%   ROS Twist message with properties:
+% 
+%     MessageType: 'geometry_msgs/Twist'
+%          Linear: [1×1 Vector3]
+%         Angular: [1×1 Vector3]
+
+% odom_messages{1}.Twist.Twist.Linear
+%   ROS Vector3 message with properties:
+% 
+%     MessageType: 'geometry_msgs/Vector3'
+%               X: -7.7509e-04
+%               Y: -7.7639e-04
+%               Z: 0.0029
+
+%% Get all T265 Odom measurements, for all variables, and for all messages
+
+% pre-define the output variables
+[m,~]    = size(odom_messages);
+
+odom_position_x           = ones(m,1) .* NaN;
+odom_position_y           = ones(m,1) .* NaN;
+odom_position_z           = ones(m,1) .* NaN;
+odom_orientation_x        = ones(m,1) .* NaN;
+odom_orientation_y        = ones(m,1) .* NaN;
+odom_orientation_z        = ones(m,1) .* NaN;
+odom_orientation_w        = ones(m,1) .* NaN;
+
+odom_velocity_linear_x    = ones(m,1) .* NaN;
+odom_velocity_linear_y    = ones(m,1) .* NaN;
+odom_velocity_linear_z    = ones(m,1) .* NaN;
+
+%%% STOPPED MAKING EDITS HERE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% process each meassage
+for r = 1:m
+   pose_position_x(r) = pose_messages{r}.Pose.Position.X;
+   pose_position_y(r) = pose_messages{r}.Pose.Position.Y;
+   pose_position_z(r) = pose_messages{r}.Pose.Position.Z;
+   
+   pose_orientation_x(r) = pose_messages{r}.Pose.Orientation.X;
+   pose_orientation_y(r) = pose_messages{r}.Pose.Orientation.Y;
+   pose_orientation_z(r) = pose_messages{r}.Pose.Orientation.Z;
+   pose_orientation_w(r) = pose_messages{r}.Pose.Orientation.W;
+   
+end % end for r loop
+
 
 %% Save Radar messages to a mat-file
 
@@ -534,8 +444,11 @@ save(output_filename, ...
      'twist_linear_x','twist_linear_y','twist_linear_z','twist_angular_x','twist_angular_y','twist_angular_z', ...
      'pose_time_stamp','pose_time_second', ...
      'pose_position_x', 'pose_position_y', 'pose_position_z', ...
-     'pose_orientation_x', 'pose_orientation_y', 'pose_orientation_z', 'pose_orientation_w');
-
+     'pose_orientation_x', 'pose_orientation_y', 'pose_orientation_z', 'pose_orientation_w', ...
+     'odom_position_x', 'odom_position_y', 'odom_position_z', ...
+     'odom_orientation_x', 'odom_orientation_y', 'odom_orientation_z', 'odom_orientation_w', ...
+     'odom_velocity_linear_x', 'odom_velocity_linear_y', 'odom_velocity_linear_z');
+     
 return;
 
 %% Get the Lidar messages
