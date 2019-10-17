@@ -19,13 +19,13 @@ clear;
 % ===========================================
 
 % Input file information
-input_directory   = '/home/carl/Data/icra_2020/radar-quad/uas_flight_space/2019-09-13/goggles/bagfiles/';
-filename_root     = 'loop_light-max_run2';
+input_directory   = '/home/carl/Data/icra_2020/radar-quad/uas_flight_space/2019-09-11/goggles/bagfiles/';
+filename_root     = 'strafing';
 filename_suffix   = '_goggles';
 input_suffix      = '.bag';
 
 % Output file information
-output_directory  = '/home/carl/Data/icra_2020/radar-quad/uas_flight_space/2019-09-13/goggles/mat_files/';
+output_directory  = '/home/carl/Data/icra_2020/radar-quad/uas_flight_space/2019-09-11/goggles/mat_files/';
 output_suffix     = '.mat';
 
 % topic information
@@ -100,15 +100,6 @@ bag.MessageList;
 % =======================
 
 goggles_bag = select(bag, 'Topic', goggles_topic);
-
-%% Get the time stamp for all radar messages
-
-time_stamp_table    = goggles_bag.MessageList(:,1);
-goggles_time_stamp  = time_stamp_table{:,1};
-goggles_time_second = goggles_time_stamp - goggles_time_stamp(1);
-
-%% Read all messages
-
 goggles_messages = readMessages(goggles_bag);
 
 %% Display the contents of one radar message cell
@@ -140,6 +131,8 @@ goggles_messages = readMessages(goggles_bag);
 % pre-define the output variables
 [m,~] = size(goggles_messages);
 
+goggles_time_stamp = ones(m,1);
+
 goggles_velocity_linear_x = ones(m,1) .* NaN;
 goggles_velocity_linear_y = ones(m,1) .* NaN;
 goggles_velocity_linear_z = ones(m,1) .* NaN;
@@ -147,11 +140,16 @@ goggles_velocity_linear_z = ones(m,1) .* NaN;
 % process each meassage
 for r = 1:m
     
+   goggles_time_stamp(r) = goggles_messages{r}.Header.Stamp.Sec + ...
+       (1e-9)*goggles_messages{r}.Header.Stamp.Nsec;
+    
    goggles_velocity_linear_x(r) = goggles_messages{r}.Twist.Twist.Linear.X;
    goggles_velocity_linear_y(r) = goggles_messages{r}.Twist.Twist.Linear.Y;
    goggles_velocity_linear_z(r) = goggles_messages{r}.Twist.Twist.Linear.Z;
    
 end % end for r loop
+
+goggles_time_second = goggles_time_stamp - goggles_time_stamp(1);
 
 %% Save Radar messages to a mat-file
 

@@ -19,12 +19,12 @@ clear;
 % ===========================================
 
 % Input file information
-input_directory   = '/home/carl/Data/icra_2020/radar-quad/uas_flight_space/2019-09-13/bagfiles/';
-filename_root     = 'complex_light-max_run2';
+input_directory   = '/home/carl/Data/icra_2020/radar-quad/uas_flight_space/2019-09-11/bagfiles/';
+filename_root     = 'strafing';
 input_suffix      = '.bag';
 
 % Output file information
-output_directory  = '/home/carl/Data/icra_2020/radar-quad/uas_flight_space/2019-09-13/mat_files/';
+output_directory  = '/home/carl/Data/icra_2020/radar-quad/uas_flight_space/2019-09-11/mat_files/';
 output_suffix     = '.mat';
 
 % topic information
@@ -114,23 +114,11 @@ radar_bag = select(bag, 'Topic', radar_topic);
 %     AvailableFrames: {6x1 cell}
 %         MessageList: [98x4 table]
 
-%% Get the time stamp for all radar messages
-
-time_stamp_table  = radar_bag.MessageList(:,1);
-radar_time_stamp  = time_stamp_table{:,1};
-radar_time_second = radar_time_stamp - radar_time_stamp(1);
-
 %% Read all messages
 
 radar_messages = readMessages(radar_bag);
-%   98�1 cell array
-% 
-%     {1�1 PointCloud2}
-%     {1�1 PointCloud2}
-%     {1�1 PointCloud2}
-%     ...
 
-%% Display the contents of one radar message cell
+%% Read Display the contents of one radar message cell
 
 %radar_messages{1}
 %   ROS PointCloud2 message with properties:
@@ -156,27 +144,30 @@ radar_messages = readMessages(radar_bag);
 %% Get all radar measurements, for all variables, and for all messages
 
 % pre-define the output variables
-[m,~]    = size(radar_messages);
-
+[m,~] = size(radar_messages);
 max_num_targets   = 160;
 
-radar_x           = ones(m,max_num_targets) .* NaN;
-radar_y           = ones(m,max_num_targets) .* NaN;
-radar_z           = ones(m,max_num_targets) .* NaN;
-radar_intensity   = ones(m,max_num_targets) .* NaN;
-radar_range       = ones(m,max_num_targets) .* NaN;
-radar_doppler     = ones(m,max_num_targets) .* NaN;
+radar_time_stamp = ones(m,1);
+
+radar_x         = ones(m,max_num_targets) .* NaN;
+radar_y         = ones(m,max_num_targets) .* NaN;
+radar_z         = ones(m,max_num_targets) .* NaN;
+radar_intensity = ones(m,max_num_targets) .* NaN;
+radar_range     = ones(m,max_num_targets) .* NaN;
+radar_doppler   = ones(m,max_num_targets) .* NaN;
 
 % process each meassage
-
 for r = 1:m
+    
+   radar_time_stamp(r) = radar_messages{r}.Header.Stamp.Sec + ...
+        (1e-9)*radar_messages{r}.Header.Stamp.Nsec;
    
-   temp_x           = readField(radar_messages{r}, 'x');
-   temp_y           = readField(radar_messages{r}, 'y');
-   temp_z           = readField(radar_messages{r}, 'z');
-   temp_intensity   = readField(radar_messages{r}, 'intensity');
-   temp_range       = readField(radar_messages{r}, 'range');
-   temp_doppler     = readField(radar_messages{r}, 'doppler');
+   temp_x         = readField(radar_messages{r}, 'x');
+   temp_y         = readField(radar_messages{r}, 'y');
+   temp_z         = readField(radar_messages{r}, 'z');
+   temp_intensity = readField(radar_messages{r}, 'intensity');
+   temp_range     = readField(radar_messages{r}, 'range');
+   temp_doppler   = readField(radar_messages{r}, 'doppler');
    
    % put these values into the master matrices
    n = length(temp_x);
@@ -190,16 +181,12 @@ for r = 1:m
    
 end % end for r loop
 
+radar_time_second = radar_time_stamp - radar_time_stamp(1);
+
 %% Get the Vicon Twist messages
 % =======================
 
 twist_bag = select(bag, 'Topic', vrpn_twist_topic);
-
-%% Get the time stamp for all Twist messages
-
-time_stamp_table  = twist_bag.MessageList(:,1);
-twist_time_stamp  = time_stamp_table{:,1};
-twist_time_second = twist_time_stamp - twist_time_stamp(1);
 
 %% Read all Twist messages
 
@@ -233,38 +220,38 @@ twist_messages = readMessages(twist_bag);
 %% Get all Twist measurements, for all variables, and for all messages
 
 % pre-define the output variables
-[m,~]    = size(twist_messages);
+[m,~] = size(twist_messages);
 
-twist_linear_x           = ones(m,1) .* NaN;
-twist_linear_y           = ones(m,1) .* NaN;
-twist_linear_z           = ones(m,1) .* NaN;
-twist_angular_x          = ones(m,1) .* NaN;
-twist_angular_y          = ones(m,1) .* NaN;
-twist_angular_z          = ones(m,1) .* NaN;
+twist_time_stamp = ones(m,1);
+
+twist_linear_x  = ones(m,1) .* NaN;
+twist_linear_y  = ones(m,1) .* NaN;
+twist_linear_z  = ones(m,1) .* NaN;
+twist_angular_x = ones(m,1) .* NaN;
+twist_angular_y = ones(m,1) .* NaN;
+twist_angular_z = ones(m,1) .* NaN;
 
 % process each meassage
 for r = 1:m
+   twist_time_stamp(r) = twist_messages{r}.Header.Stamp.Sec + ...
+        (1e-9)*twist_messages{r}.Header.Stamp.Nsec;
     
    twist_linear_x(r) = twist_messages{r}.Twist.Linear.X;
    twist_linear_y(r) = twist_messages{r}.Twist.Linear.Y;
    twist_linear_z(r) = twist_messages{r}.Twist.Linear.Z;
-   
+
    twist_angular_x(r) = twist_messages{r}.Twist.Angular.X;
    twist_angular_y(r) = twist_messages{r}.Twist.Angular.Y;
    twist_angular_z(r) = twist_messages{r}.Twist.Angular.Z;
    
 end % end for r loop
 
+twist_time_second = twist_time_stamp - twist_time_stamp(1);
+
 %% Get the Vicon Pose messages
 % =======================
 
 pose_bag = select(bag, 'Topic', vrpn_pose_topic);
-
-%% Get the time stamp for all Pose messages
-
-time_stamp_table  = pose_bag.MessageList(:,1);
-pose_time_stamp  = time_stamp_table{:,1};
-pose_time_second = pose_time_stamp - pose_time_stamp(1);
 
 %% Read all Pose messages
 
@@ -307,18 +294,23 @@ pose_messages = readMessages(pose_bag);
 %% Get all Pose measurements, for all variables, and for all messages
 
 % pre-define the output variables
-[m,~]    = size(pose_messages);
+[m,~] = size(pose_messages);
 
-pose_position_x           = ones(m,1) .* NaN;
-pose_position_y           = ones(m,1) .* NaN;
-pose_position_z           = ones(m,1) .* NaN;
-pose_orientation_x        = ones(m,1) .* NaN;
-pose_orientation_y        = ones(m,1) .* NaN;
-pose_orientation_z        = ones(m,1) .* NaN;
-pose_orientation_w        = ones(m,1) .* NaN;
+pose_time_stamp = ones(m,1);
+
+pose_position_x    = ones(m,1) .* NaN;
+pose_position_y    = ones(m,1) .* NaN;
+pose_position_z    = ones(m,1) .* NaN;
+pose_orientation_x = ones(m,1) .* NaN;
+pose_orientation_y = ones(m,1) .* NaN;
+pose_orientation_z = ones(m,1) .* NaN;
+pose_orientation_w = ones(m,1) .* NaN;
 
 % process each meassage
 for r = 1:m
+   pose_time_stamp(r) = pose_messages{r}.Header.Stamp.Sec + ...
+       (1e-9)*pose_messages{r}.Header.Stamp.Nsec;
+    
    pose_position_x(r) = pose_messages{r}.Pose.Position.X;
    pose_position_y(r) = pose_messages{r}.Pose.Position.Y;
    pose_position_z(r) = pose_messages{r}.Pose.Position.Z;
@@ -330,16 +322,12 @@ for r = 1:m
    
 end % end for r loop
 
+pose_time_second = pose_time_stamp - pose_time_stamp(1);
+
 %% Get the T265 Odom messages
 % =======================
 
 odom_bag = select(bag, 'Topic', t265_odom_topic);
-
-%% Get the time stamp for all Pose messages
-
-time_stamp_table = odom_bag.MessageList(:,1);
-odom_time_stamp  = time_stamp_table{:,1};
-odom_time_second = odom_time_stamp - odom_time_stamp(1);
 
 %% Read all Pose messages
 
@@ -395,27 +383,30 @@ odom_messages = readMessages(odom_bag);
 %% Get all T265 Odom measurements, for all variables, and for all messages
 
 % pre-define the output variables
-[m,~]    = size(odom_messages);
+[m,~] = size(odom_messages);
 
-odom_position_x           = ones(m,1) .* NaN;
-odom_position_y           = ones(m,1) .* NaN;
-odom_position_z           = ones(m,1) .* NaN;
-odom_orientation_x        = ones(m,1) .* NaN;
-odom_orientation_y        = ones(m,1) .* NaN;
-odom_orientation_z        = ones(m,1) .* NaN;
-odom_orientation_w        = ones(m,1) .* NaN;
+odom_time_stamp = ones(m,1);
 
-odom_velocity_linear_x    = ones(m,1) .* NaN;
-odom_velocity_linear_y    = ones(m,1) .* NaN;
-odom_velocity_linear_z    = ones(m,1) .* NaN;
-odom_velocity_angular_x   = ones(m,1) .* NaN;
-odom_velocity_angular_y   = ones(m,1) .* NaN;
-odom_velocity_angular_z   = ones(m,1) .* NaN;
+odom_position_x    = ones(m,1) .* NaN;
+odom_position_y    = ones(m,1) .* NaN;
+odom_position_z    = ones(m,1) .* NaN;
+odom_orientation_x = ones(m,1) .* NaN;
+odom_orientation_y = ones(m,1) .* NaN;
+odom_orientation_z = ones(m,1) .* NaN;
+odom_orientation_w = ones(m,1) .* NaN;
 
-%%% STOPPED MAKING EDITS HERE %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+odom_velocity_linear_x  = ones(m,1) .* NaN;
+odom_velocity_linear_y  = ones(m,1) .* NaN;
+odom_velocity_linear_z  = ones(m,1) .* NaN;
+odom_velocity_angular_x = ones(m,1) .* NaN;
+odom_velocity_angular_y = ones(m,1) .* NaN;
+odom_velocity_angular_z = ones(m,1) .* NaN;
 
 % process each meassage
 for r = 1:m
+   odom_time_stamp(r) = odom_messages{r}.Header.Stamp.Sec + ...
+       (1e-9)*odom_messages{r}.Header.Stamp.Nsec; 
+   
    odom_position_x(r) = odom_messages{r}.Pose.Pose.Position.X;
    odom_position_y(r) = odom_messages{r}.Pose.Pose.Position.Y;
    odom_position_z(r) = odom_messages{r}.Pose.Pose.Position.Z;
@@ -435,6 +426,7 @@ for r = 1:m
    
 end % end for r loop
 
+odom_time_second = odom_time_stamp - odom_time_stamp(1);
 
 %% Save Radar messages to a mat-file
 

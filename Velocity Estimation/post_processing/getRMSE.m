@@ -1,4 +1,4 @@
-function [ rmse, error ] = getRMSE( estimate, estimate_time, ...
+function [ rmse, error, idx ] = getRMSE( estimate, estimate_time, ...
     truth, truth_time, dim, thres)
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
@@ -20,22 +20,28 @@ for i=1:NScans
     % get index of closest Vicon velocity estimate to current time step
     [~,idx] = min( abs(truth_time - estimate_time(i)) );
     
+    if abs(estimate_time(i) - truth_time(idx)) > 0.01
+        warning('n\getRMSE: groundtruth time and estimate time separated by more than 10ms');
+    end
+    
     if isnan(estimate(i,:))
 %         error(i,:) = zeros(1,2);
         error(i,:) = abs(truth(idx,1:dim));
     else
-        if norm(truth(idx,:)) < thres
-            % compute absolute value of error
-            error(i,:) = abs(truth(idx,1:dim) - estimate(i,:)); 
+        % compute absolute value of error
+        error(i,:) = abs(truth(idx,1:dim) - estimate(i,:));
+        
+        if vecnorm(error(i,:)) > thres
+            error(i,:) = NaN*ones(1,dim);
         else
-            % find closest value in twist_linear_body vector less than
-            % threshold= - really what I need to do is smooth the ground
-            % truth velocity data
-            
-            error(i,:) = zeros(1,dim);
+            % do nothing - error less than threshold
         end
     end
 end
+
+% remove NaN values from error matrix
+idx = ~isnan(error(:,1));
+error = error(idx,:);
 
 % compute component wise RMSE
 rmse = sqrt(mean(error.^2,1));
