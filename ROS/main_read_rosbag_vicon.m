@@ -1,4 +1,4 @@
-% program: main_read_ros_bag_vicon_RL_1642.m
+% program: main_read_ros_bag_vicon.m
 % updated: 8-Nov-2018
 
 % This routine reads radar and lidar data from a ROS Bag and 
