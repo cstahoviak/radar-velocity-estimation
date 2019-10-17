@@ -42,7 +42,7 @@ elseif strcmp(vehicle,'jackal')
 else
     path = '';
 end
-filename = 'complex_light-min_run0';
+filename = 'complex_light-max_run4';
 filetype = '.mat';
 
 mat_file = strcat(path,'/mat_files/',filename,filetype);
@@ -56,6 +56,9 @@ gt1_stats   = false;
 ISRR    = false;    % evaluating data from ISRR submission?
 t265    = true;     % does dataset include T265 VIO data?
 goggles = true;     % does dataset goggles linear velocity estimate?
+
+% remove bad ODR estimates? (casued by 'wrapping' in the Doppler-FFT)
+rm_odr = true;
 
 %% Modify Radar Data
 
@@ -555,7 +558,11 @@ end
 %          vy_mean, vy_std, vy_min, vy_max;
 %          vz_mean, vz_std, vz_min, vz_max];
 
-odr_thresh = 1;
+if rm_odr
+    odr_thresh = 1;
+else
+    odr_thresh = inf;
+end
 
 % GT2 - MLESAC RMSE statistics
 fprintf('Getting MLSESAC RMSE Statistics\n')
@@ -699,6 +706,11 @@ end
 gt = velocity_body_smooth;
 
 % (optionally) remove ODR estimates with large error
+% if ~rm_odr
+%     idx_odr = true*ones(Nscans,1);
+%     idx_odr_w = true*ones(Nscans,1);
+% end
+
 vhat_odr = vhat_odr(idx_odr,:);
 vhat_odr_w = vhat_odr_w(idx_odr_w,:);
 sigma_odr = sigma_odr(idx_odr,:);
