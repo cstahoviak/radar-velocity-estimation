@@ -326,8 +326,8 @@ for i=1:Nscans
         % targets located at distinct azimuth bins
 
         % get MLESAC (Maximum Likelihood RANSAC) model and inlier set
-        [ model_mlesac, inlier_idx ] = MLESAC_3D( doppler', azimuth', ...
-            elevation', sampleSize, maxDistance );
+        [ model_mlesac, inlier_idx ] = MLESAC_3D( doppler, azimuth, ...
+            elevation, sampleSize, maxDistance );
         time(i,1) = toc;
         Ntargets_inlier = sum(inlier_idx);
         targets(i,3) = Ntargets_inlier;

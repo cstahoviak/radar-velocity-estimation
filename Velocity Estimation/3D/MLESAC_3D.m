@@ -7,7 +7,7 @@ function [ model, inlier_idx ] = MLESAC_3D( radar_doppler, radar_azimuth, ...
 
 % An mxn matrix. Each row represents a single data point
 % in the set to be modeled
-data = [radar_doppler' radar_azimuth', radar_elevation'];
+data = [radar_doppler, radar_azimuth, radar_elevation];
 Ntargets = size(data,1);
 
 if (Ntargets >= 5)
@@ -38,8 +38,8 @@ function [ model ] = MLESAC_fitFcn( data )
     radar_azimuth   = data(:,2);    % [rad]
     radar_elevation = data(:,3);    % [rad]
     
-    model = doppler2BodyFrameVelocities3D( radar_doppler', ...
-    radar_azimuth', radar_elevation' );
+    model = doppler2BodyFrameVelocities3D( radar_doppler, ...
+    radar_azimuth , radar_elevation );
 end
 
 function [ distances ] = MLESAC_distFcn( model, data )

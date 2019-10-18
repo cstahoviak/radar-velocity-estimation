@@ -12,7 +12,7 @@ bins = [];
 current_bin = angle_bins(1);
 begin_idx = 1;
 
-for i=1:size(angle_bins,2)
+for i=1:size(angle_bins,1)
     if abs(current_bin - angle_bins(i)) > bin_thres
         % update location of last angle to be averaged
         end_idx = i-1;
@@ -29,7 +29,7 @@ for i=1:size(angle_bins,2)
         current_bin = angle_bins(i);
     end
         
-    if i == size(angle_bins,2)
+    if i == size(angle_bins,1)
         % update location of last angle to be averaged
         end_idx = i;
         

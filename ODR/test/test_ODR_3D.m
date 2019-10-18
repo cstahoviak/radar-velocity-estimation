@@ -21,6 +21,7 @@ maxDistance = 0.15;          % only roughly tuned at this point
 n = sampleSize;     % minimum number of points needed to fit the model
 p = 0.95;           % probability of sampling at least one good inlier set
 t = maxDistance;    % threshold to declare inlier/outlier
+mlesac_max_iter = 50;
 
 %% Define ODR Parameters
 
@@ -91,19 +92,18 @@ radar_data = [(1:Ntargets)', radar_doppler, radar_azimuth, radar_elevation];
 
 % get Matlab MLESAC (Max. Likelihood RANSAC) model and inlier set
 tic
-[ model_mlesac, inlier_idx ] = MLESAC_3D( radar_doppler', ...
-    radar_azimuth', radar_elevation', sampleSize, maxDistance );
+[ model_mlesac, inlier_idx ] = MLESAC_3D( radar_doppler, ...
+    radar_azimuth, radar_elevation, sampleSize, maxDistance );
 time_mlesac = toc;
 Ninliers = sum(inlier_idx);     % probably shouldn't redefine this var
 
-% get doppler_mlesac (OLS) estimate
-% NOTE: Lost the mlesac_3d() fcn when my computer died; will have to
-% re-write eventually
-% data = [radar_doppler, radar_azimuth, radar_elevation];
-% tic
-% [ model_mlesac2, inlier_idx2, scores ] = mlesac_3D( data, n, p, t, sigma_vr);
-% time_mlesac2 = toc;
-% Ninliears2 = sum(inlier_idx2)
+% get doppler_mlesac estimate
+data = [radar_doppler, radar_azimuth, radar_elevation];
+tic
+[ model_mlesac2, inlier_idx2, scores ] = doppler_mlesac( data, n, p, t, ...
+    mlesac_max_iter, sigma_vr);
+time_mlesac2 = toc;
+Ninliers2 = sum(inlier_idx2);
 
 % create data for ODR regression 
 weights = (1/sigma_vr)*ones(Ninliers,1);
@@ -163,10 +163,10 @@ tic
 time_odr5 = toc;
 
 % get 3D Orthogonal Distance Regression (ODR_v5) estimate
-tic
-[ model_odr6, beta6, ~, iter6 ] = ODR_v6( data, d, model_mlesac, ...
-    sigma, weights, ones(3,1), 0.5, 100, get_covar );
-time_odr6 = toc;
+% tic
+% [ model_odr6, beta6, ~, iter6 ] = ODR_v6( data, d, model_mlesac, ...
+%     sigma, weights, ones(3,1), 0.5, 100, get_covar );
+% time_odr6 = toc;
 
 % get LSQNONLIN (OLS) solution
 
@@ -188,6 +188,7 @@ time_nlinfit = toc;
 
 % RMSE_bruteforce     = sqrt(mean((velocity - model_bruteforce).^2))
 RMSE_mlesac    = sqrt(mean((velocity - model_mlesac).^2));
+RMSE_mlesac2   = sqrt(mean((velocity - model_mlesac2).^2));
 RMSE_lsqnonlin = sqrt(mean((velocity - model_lsqnonlin).^2));
 RMSE_nlinfit   = sqrt(mean((velocity - model_nlinfit).^2));
 RMSE_odr1      = sqrt(mean((velocity - model_odr1).^2));
@@ -195,7 +196,7 @@ RMSE_odr2      = sqrt(mean((velocity - model_odr2).^2));
 RMSE_odr3      = sqrt(mean((velocity - model_odr3).^2));
 RMSE_odr4      = sqrt(mean((velocity - model_odr4).^2));
 RMSE_odr5      = sqrt(mean((velocity - model_odr5).^2));
-RMSE_odr6      = sqrt(mean((velocity - model_odr6).^2));
+% RMSE_odr6      = sqrt(mean((velocity - model_odr6).^2));
 
 % RMSE_odr5_t     = sqrt(mean((velocity - model_odr5_t).^2));
 % RMSE_odr_3d     = sqrt(mean((velocity - model_odr_3d).^2));
@@ -213,6 +214,7 @@ fprintf('%.4f\t\t%.4f\t\t%.4f\t\t %.4f\n', velocity(3), model_mlesac(3), ...
 
 fprintf('\nAlgorithm Evaluation - RMSE [m/s]\n');
 fprintf('Matlab MLESAC\t= %.4f\n', RMSE_mlesac);
+fprintf('Doppler MLESAC\t= %.4f\n', RMSE_mlesac2);
 fprintf('LSQNONLIN (OLS)\t= %.4f\n', RMSE_lsqnonlin);
 fprintf('NLINFIT (OLS)\t= %.4f\n', RMSE_nlinfit);
 fprintf('ODR_v1\t\t= %.4f\n', RMSE_odr1);
@@ -220,12 +222,13 @@ fprintf('ODR_v2\t\t= %.4f\n', RMSE_odr2);
 fprintf('ODR_v3\t\t= %.4f\n', RMSE_odr3);
 fprintf('ODR_v4\t\t= %.4f\n', RMSE_odr4);
 fprintf('ODR_v5\t\t= %.4f\n', RMSE_odr5);
-fprintf('ODR_v6\t\t= %.4f\n', RMSE_odr6);
+% fprintf('ODR_v6\t\t= %.4f\n', RMSE_odr6);
 % fprintf('ODR_v5_test\t= %.4f\n', RMSE_odr5_t);
 % fprintf('ODR_3D\t\t= %.4f\n', RMSE_odr_3d);
 
 fprintf('\nAlgorithm Evaluation - Execution Time [milliseconds]\n');
 fprintf('Matlab MLESAC\t= %.4f\n', 1e3*time_mlesac);
+fprintf('Doppler MLESAC\t= %.4f\n', 1e3*time_mlesac2);
 fprintf('LSQNONLIN (OLS)\t= %.4f\n', 1e3*time_lsqnonlin);
 fprintf('NLINFIT (OLS)\t= %.4f\n', 1e3*time_nlinfit);
 fprintf('ODR_v1\t\t= %.4f\n', 1e3*time_odr1);
@@ -233,21 +236,20 @@ fprintf('ODR_v2\t\t= %.4f\n', 1e3*time_odr2);
 fprintf('ODR_v3\t\t= %.4f\n', 1e3*time_odr3);
 fprintf('ODR_v4\t\t= %.4f\n', 1e3*time_odr4);
 fprintf('ODR_v5\t\t= %.4f\n', 1e3*time_odr5);
-fprintf('ODR_v6\t\t= %.4f\n', 1e3*time_odr6);
+% fprintf('ODR_v6\t\t= %.4f\n', 1e3*time_odr6);
 % fprintf('ODR_v5_test\t= %.4f\n', 1e3*time_odr5_t);
 % fprintf('ODR_3D\t\t= %.4f\n', 1e3*time_odr_3d);
 
 fprintf('\nAlgorithm Evaluation - Misc.\n');
 fprintf('Matlab MLESAC Inliers\t= %d\n', Ninliers);
+fprintf('Doppler MLESAC Inliers\t= %d\n', Ninliers2);
 fprintf('\t\t ODR_v1\t ODR_v2\t ODR_v3\t ODR_v4\t ODR_v5\t ODR_v6\n');
-fprintf('ODR Iterations\t %d\t %d\t %d\t %d\t %d\t %d\n', iter1, iter2, ...
-    iter3, iter4, iter5, iter6);
+fprintf('ODR Iterations\t %d\t %d\t %d\t %d\t %d\n', iter1, iter2, ...
+    iter3, iter4, iter5);
 
 % fprintf('\t\t ODR_v1\t ODR_v2\t ODR_v3\t ODR_v4\t ODR_v5\t ODR_v5t\t ODR_3D\n');
 % fprintf('ODR Iterations\t %d\t %d\t %d\t %d\t %d\t %d\t\t %d\n', iter1, iter2, ...
 %     iter3, iter4, iter5, iter5_t, iter_3d);
-
-return;
 
 %% Plot Results
 
@@ -371,14 +373,12 @@ hdl = legend('true velocity profile','OLS velocity profile', ...
     'ODR velocity profile','MLESAC inliers','MLESAC outliers');
 set(hdl,'Interpreter','latex')
 
-return;
-
 %% Plot doppler MLESAC Convergence Indicators
 
-% figure(6)
-% plot(scores)
-% xlim([0,length(scores)])
-% xlabel('iteration','Interpreter','latex')
-% ylabel('data log-likelihood','Interpreter','latex')
-% title('MLESAC data log-likelihood','Interpreter','latex')
+figure(6)
+plot(scores)
+xlim([0,length(scores)])
+xlabel('iteration','Interpreter','latex')
+ylabel('data log-likelihood','Interpreter','latex')
+title('MLESAC data log-likelihood','Interpreter','latex')
 
