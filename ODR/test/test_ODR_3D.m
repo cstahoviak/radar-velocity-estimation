@@ -129,6 +129,8 @@ data = [radar_doppler(inlier_idx), radar_azimuth(inlier_idx), ...
 %     radar_azimuth(inlier_idx)', radar_elevation(inlier_idx)', d, model_mlesac, ...
 %     [delta_theta'; delta_phi'], weights, converge_thres );
 % time_odr_3d = toc;
+
+a = ransac(
         
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

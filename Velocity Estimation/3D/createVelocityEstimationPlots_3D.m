@@ -99,7 +99,7 @@ title(axh9_1,'Weighted ODR\_v5 + Covariance Bounds','Interpreter','latex');
 ylabel(axh9_1,'$v_x$ [m/s]','Interpreter','latex');
 ylabel(axh9_2,'$v_y$ [m/s]','Interpreter','latex');
 ylabel(axh9_3,'$v_z$ [m/s]','Interpreter','latex');
-xlabel(axh9_2,'time [s]','Interpreter','latex');
+xlabel(axh9_3,'time [s]','Interpreter','latex');
 
 % Weighted ODR_v5 + covariance bounds centered at zero
 fh10 = figure(10);
@@ -110,14 +110,25 @@ title(axh10_1,'Weighted ODR\_v5 + Covariance Bounds','Interpreter','latex');
 ylabel(axh10_1,'$v_x$ [m/s]','Interpreter','latex');
 ylabel(axh10_2,'$v_y$ [m/s]','Interpreter','latex');
 ylabel(axh10_3,'$v_z$ [m/s]','Interpreter','latex');
-xlabel(axh10_2,'time [s]','Interpreter','latex');
+xlabel(axh10_3,'time [s]','Interpreter','latex');
+
+% Weighted ODR_v5 + Ceres-based methods
+fh11 = figure(11);
+axh11_1 = subplot(3,1,1); hold(axh11_1, 'on'); grid;
+axh11_2 = subplot(3,1,2); hold(axh11_2, 'on'); grid;
+axh11_3 = subplot(3,1,3); hold(axh11_3, 'on'); grid;
+title(axh11_1,'Weighted ODR\_v5 + Ceres-based Ego-Velocity Estimates','Interpreter','latex');
+ylabel(axh11_1,'$v_x$ [m/s]','Interpreter','latex');
+ylabel(axh11_2,'$v_y$ [m/s]','Interpreter','latex');
+ylabel(axh11_3,'$v_z$ [m/s]','Interpreter','latex');
+xlabel(axh11_3,'time [s]','Interpreter','latex');
 
 % concatenate figure and axes handles
-fig_h = [fh1; fh2; fh3; fh4; fh5; fh6; fh7; fh8; fh9; fh10];
+fig_h = [fh1; fh2; fh3; fh4; fh5; fh6; fh7; fh8; fh9; fh10; fh11];
 ax_h  = [axh1_1; axh1_2; axh1_3; axh2_1; axh2_2; axh2_3; axh3; ...
          axh4_1; axh4_2; axh4_3; axh5_1; axh5_2; axh5_3; ...
          axh6_1; axh6_2; axh6_3; axh7_1; axh7_2; axh7_3; ...
          axh8_1; axh8_2; axh8_3; axh9_1; axh9_2; axh9_3; ...
-         axh10_1; axh10_2; axh10_3];
+         axh10_1; axh10_2; axh10_3; axh11_1; axh11_2; axh11_3];
 
 end

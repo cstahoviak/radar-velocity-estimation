@@ -11,6 +11,7 @@
 
 clc;
 clear;
+format compact
 
 %% Define the location of input and output files
 
@@ -19,13 +20,13 @@ clear;
 % ===========================================
 
 % Input file information
-input_directory   = '/home/carl/Data/icra_2020/radar-quad/uas_flight_space/2019-09-11/goggles/bagfiles/';
-filename_root     = 'strafing';
+input_directory   = '/home/carl/Data/icra_2020/radar-quad/uas_flight_space/2019-09-13/goggles/ceres-ols/bagfiles/';
+filename_root     = 'loop_light-max_run2';
 filename_suffix   = '_goggles';
 input_suffix      = '.bag';
 
 % Output file information
-output_directory  = '/home/carl/Data/icra_2020/radar-quad/uas_flight_space/2019-09-11/goggles/mat_files/';
+output_directory  = '/home/carl/Data/icra_2020/radar-quad/uas_flight_space/2019-09-13/goggles/ceres-ols/mat_files/';
 output_suffix     = '.mat';
 
 % topic information
