@@ -42,7 +42,7 @@ elseif strcmp(vehicle,'jackal')
 else
     path = '';
 end
-filename = 'complex_light-max_run2';
+filename = 'complex_light-min_run1';
 filetype = '.mat';
 
 mat_file = strcat(path,'/mat_files/',filename,filetype);
@@ -55,12 +55,12 @@ gt1_stats   = false;
 % additional data
 ISRR = false;           % evaluating data from ISRR submission?
 t265 = true;            % does dataset include T265 VIO data?
-ceres_cauchy = true;    % does dataset include Goggles (Ceres-Cauchy) estimate?
-ceres_ransac = true;    % does dataset include Goggles (Ceres-RANSAC) estimate?
-ceres_ols    = true;    % does dataset include Goggles (Ceres-OLS) estimate?
+ceres_cauchy = false;    % does dataset include Goggles (Ceres-Cauchy) estimate?
+ceres_ransac = false;    % does dataset include Goggles (Ceres-RANSAC) estimate?
+ceres_ols    = false;    % does dataset include Goggles (Ceres-OLS) estimate?
 
 % remove bad ODR estimates? (casued by 'wrapping' in the Doppler-FFT)
-rm_odr = false;
+rm_odr = true;
 
 %% Modify Radar Data
 
@@ -815,7 +815,11 @@ vhat_odr_w = vhat_odr_w(idx_odr_w,:);
 sigma_odr = sigma_odr(idx_odr,:);
 sigma_odr_w = sigma_odr_w(idx_odr_w,:);
 
-if xor(~xor(ceres_cauchy, ceres_ransac), ceres_ols)
+if ~(ceres_cauchy || ceres_ransac || ceres_ols)
+    fprintf('\nNo Goggles estimates to be plotted\n')
+    goggles = false;
+    
+elseif xor(~xor(ceres_cauchy, ceres_ransac), ceres_ols)
     goggles = true;
     
     if ceres_cauchy
@@ -844,6 +848,7 @@ elseif ceres_cauchy && ceres_ransac && ceres_ransac
     goggles_time_stamp    = ransac_time_stamp;
     
 else
+    warning('Should not reach this state')
     goggles = false;
 end
 
@@ -948,7 +953,7 @@ elseif t265
     plot(ax_h(18),odom_time_stamp,odom_velocity_body(:,2),'color',colors(4,:));
     plot(ax_h(19),odom_time_stamp,odom_velocity_body(:,3),'color',colors(4,:));
     
-    legend(h,{'groundtruth','ODR','T265 VIO'},'Interpreter','latex')
+    legend(h,{'groundtruth','Radar Odometry','T265 VIO'},'Interpreter','latex')
 elseif goggles
     h(3) = plot(ax_h(17),goggles_time_stamp,goggles_velocity_body(:,1),'color',colors(6,:));
     plot(ax_h(18),goggles_time_stamp,goggles_velocity_body(:,2),'color',colors(6,:));
@@ -1059,7 +1064,7 @@ if ceres_cauchy || ceres_ransac || ceres_ols
     
     legend(ax_h(29),legend_entries,'Interpreter','latex')
 else
-    close fig_h(11);
+    close(fig_h(11));
 end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
