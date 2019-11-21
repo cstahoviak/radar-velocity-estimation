@@ -1,5 +1,5 @@
 function [ model, inlier_idx, scores ] = doppler_mlesac( data, n, p, t, ...
-    max_iter, sigma_vr)
+    converge_thres, max_iter, sigma_vr)
 
 %%% Inputs:
 % data - a set of observed data points
@@ -21,11 +21,12 @@ bestScore   = -1e6;   % large negative number
 bestInliers = [];
 bestModel   = [];
 scores      = NaN*ones(max_iter,1);
+dll_incr    = inf;
 
 k = 1;      % valid sample iteration number
 j = 1;      % score count
 
-while k < max_iter
+while abs(dll_incr) > converge_thres && k < max_iter
     
     % randomly sample n observations from data
     sample = datasample(data,n);
@@ -50,6 +51,7 @@ while k < max_iter
         
         if score > bestScore
             % this model better explains the data
+            dll_incr = score - bestScore;
             bestScore = score;
             bestInliers = (sqrt(eps_sq) < t);
             bestModel = model;

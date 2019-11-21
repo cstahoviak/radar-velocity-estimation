@@ -42,7 +42,7 @@ elseif strcmp(vehicle,'jackal')
 else
     path = '';
 end
-filename = 'complex_light-min_run1';
+filename = 'complex_light-max_run2';
 filetype = '.mat';
 
 mat_file = strcat(path,'/mat_files/',filename,filetype);
@@ -55,9 +55,13 @@ gt1_stats   = false;
 % additional data
 ISRR = false;           % evaluating data from ISRR submission?
 t265 = true;            % does dataset include T265 VIO data?
-ceres_cauchy = false;    % does dataset include Goggles (Ceres-Cauchy) estimate?
-ceres_ransac = false;    % does dataset include Goggles (Ceres-RANSAC) estimate?
-ceres_ols    = false;    % does dataset include Goggles (Ceres-OLS) estimate?
+
+ceres_cauchy = false;   % does dataset include Goggles (Ceres-Cauchy) estimate?
+ceres_mlesac = false;    % does dataset include Goggles (Ceres-RANSAC) estimate?
+ceres_ols    = false;   % does dataset include Goggles (Ceres-OLS) estimate?
+
+py_node_ols = true;     % does dataset include Goggles (py_node OLS) estimate?
+py_node_odr = true;     % does dataset include Goggles (py_node ODR) estimate?
 
 % remove bad ODR estimates? (casued by 'wrapping' in the Doppler-FFT)
 rm_odr = true;
@@ -105,11 +109,11 @@ if ceres_cauchy
     clear goggles*;
 end
 
-if ceres_ransac
-    fprintf('Loading Ceres-RANSAC Data\n')
+if ceres_mlesac
+    fprintf('Loading Ceres-MLESAC Data\n')
     goggles_filename = strcat(filename,'_goggles');
     filetype = '.mat';
-    goggles_matfile = strcat(path,'/goggles/ceres-ransac/mat_files/',goggles_filename,filetype);
+    goggles_matfile = strcat(path,'/goggles/ceres-mlesac/mat_files/',goggles_filename,filetype);
     load(goggles_matfile);
     
     ransac_velocity_linear_x = goggles_velocity_linear_x;
@@ -145,6 +149,46 @@ if ceres_ols
     clear goggles*;
 end
 
+if py_node_ols
+    fprintf('Loading py_node OLS Data\n')
+    goggles_filename = strcat(filename,'_goggles');
+    filetype = '.mat';
+    goggles_matfile = strcat(path,'/goggles/py_node-ols/mat_files/',goggles_filename,filetype);
+    load(goggles_matfile);
+    
+    py_ols_velocity_linear_x = goggles_velocity_linear_x;
+    py_ols_velocity_linear_y = goggles_velocity_linear_y;
+    py_ols_velocity_linear_z = goggles_velocity_linear_z;
+    
+    py_ols_velocity_body = [py_ols_velocity_linear_x, ...
+        py_ols_velocity_linear_y, py_ols_velocity_linear_z];
+    
+    py_ols_time_second = goggles_time_second;
+    py_ols_time_stamp  = goggles_time_stamp;
+    
+    clear goggles*;
+end
+
+if py_node_odr
+    fprintf('Loading py_node ODR Data\n')
+    goggles_filename = strcat(filename,'_goggles');
+    filetype = '.mat';
+    goggles_matfile = strcat(path,'/goggles/py_node-odr/test/mat_files/',goggles_filename,filetype);
+    load(goggles_matfile);
+    
+    py_odr_velocity_linear_x = goggles_velocity_linear_x;
+    py_odr_velocity_linear_y = goggles_velocity_linear_y;
+    py_odr_velocity_linear_z = goggles_velocity_linear_z;
+    
+    py_odr_velocity_body = [py_odr_velocity_linear_x, ...
+        py_odr_velocity_linear_y, py_odr_velocity_linear_z];
+    
+    py_odr_time_second = goggles_time_second;
+    py_odr_time_stamp  = goggles_time_stamp;
+    
+    clear goggles*;
+end
+
 %% Create Figures
 
 [ fig_h, ax_h ] = createVelocityEstimationPlots_3D();
@@ -172,6 +216,8 @@ maxDistance = 0.15;     % only roughly tuned at this point
 n = sampleSize;     % minimum number of points needed to fit the model
 p = 0.95;           % probability of sampling at least one good inlier set
 t = maxDistance;    % threshold to declare inlier/outlier
+
+mlesac_converge_thres = 10;
 mlesac_max_iter = 50;
 
 %% Define ODR parameters
@@ -191,7 +237,7 @@ d = [sigma_vr/sigma_theta; sigma_vr/sigma_phi];
 % scaling factor for step s - ODR_v5
 s = 10*ones(sampleSize,1);
 
-converge_thres = 0.00005;
+converge_thres = 0.0005;
 max_iter = 50;
 get_covar = true;
 
@@ -386,10 +432,10 @@ for i=1:Nscans
         data_mlesac = [doppler, azimuth, elevation];
 
         % get MLESAC (Maximum Likelihood RANSAC) model and inlier set
-        [ model_mlesac, inlier_idx ] = MLESAC_3D( doppler, azimuth, ...
-            elevation, sampleSize, maxDistance );
-%         [ model_mlesac, inlier_idx, ~ ] = doppler_mlesac( data_mlesac, ...
-%             n, p, t, mlesac_max_iter, sigma_vr);
+%         [ model_mlesac, inlier_idx ] = MLESAC_3D( doppler, azimuth, ...
+%             elevation, sampleSize, maxDistance );
+        [ model_mlesac, inlier_idx, ~ ] = doppler_mlesac( data_mlesac, ...
+            n, p, t, mlesac_converge_thres, mlesac_max_iter, sigma_vr);
         time(i,1) = toc;
         Ntargets_inlier = sum(inlier_idx);
         targets(i,3) = Ntargets_inlier;
@@ -672,9 +718,9 @@ if ceres_cauchy
         std(error_cauchy_gt2,1)', min(error_cauchy_gt2)', max(error_cauchy_gt2)'];
 end
 
-if ceres_ransac
+if ceres_mlesac
     % GT2 - Googles RMSE statistics
-    fprintf('Getting Goggles (Ceres-RANSAC) RMSE Statistics\n')
+    fprintf('Getting Goggles (Ceres-MLESAC) RMSE Statistics\n')
     [rmse_ransac_gt2, error_ransac_gt2] = getRMSE( ransac_velocity_body, ...
         ransac_time_stamp, velocity_body_smooth, velocity_time_stamp, p, norm_thresh);
     ransac_gt2_stats = [sqrt(mean(error_ransac_gt2.^2,1))', ...
@@ -688,6 +734,24 @@ if ceres_ols
         ols_time_stamp, velocity_body_smooth, velocity_time_stamp, p, norm_thresh);
     ols_gt2_stats = [sqrt(mean(error_ols_gt2.^2,1))', ...
         std(error_ols_gt2,1)', min(error_ols_gt2)', max(error_ols_gt2)'];
+end
+
+if py_node_ols
+    % GT2 - Googles RMSE statistics
+    fprintf('Getting Goggles (py_node OLS) RMSE Statistics\n')
+    [rmse_py_ols_gt2, error_py_ols_gt2] = getRMSE( py_ols_velocity_body, ...
+        py_ols_time_stamp, velocity_body_smooth, velocity_time_stamp, p, norm_thresh);
+    py_ols_gt2_stats = [sqrt(mean(error_py_ols_gt2.^2,1))', ...
+        std(error_py_ols_gt2,1)', min(error_py_ols_gt2)', max(error_py_ols_gt2)'];
+end
+
+if py_node_odr
+    % GT2 - Googles RMSE statistics
+    fprintf('Getting Goggles (py_node ODR) RMSE Statistics\n')
+    [rmse_py_odr_gt2, error_py_odr_gt2] = getRMSE( py_odr_velocity_body, ...
+        py_odr_time_stamp, velocity_body_smooth, velocity_time_stamp, p, norm_thresh);
+    py_odr_gt2_stats = [sqrt(mean(error_py_odr_gt2.^2,1))', ...
+        std(error_py_odr_gt2,1)', min(error_py_odr_gt2)', max(error_py_odr_gt2)'];
 end
 
 fprintf('\nGT2 Ego-Velocity Error -- Forward [m/s]\n')
@@ -708,13 +772,21 @@ if ceres_cauchy
     fprintf('Ceres-Cauchy\t %.4f\t %.4f\t %.4f\t %.4f\n',cauchy_gt2_stats(1,1), ...
         cauchy_gt2_stats(1,2),cauchy_gt2_stats(1,3),cauchy_gt2_stats(1,4))
 end
-if ceres_ransac
+if ceres_mlesac
     fprintf('Ceres-RANSAC\t %.4f\t %.4f\t %.4f\t %.4f\n',ransac_gt2_stats(1,1), ...
         ransac_gt2_stats(1,2),ransac_gt2_stats(1,3),ransac_gt2_stats(1,4))
 end
 if ceres_ols
     fprintf('Ceres-OLS\t %.4f\t %.4f\t %.4f\t %.4f\n',ols_gt2_stats(1,1), ...
         ols_gt2_stats(1,2),ols_gt2_stats(1,3),ols_gt2_stats(1,4))
+end
+if py_node_ols
+    fprintf('py_node OLS\t %.4f\t %.4f\t %.4f\t %.4f\n',py_ols_gt2_stats(1,1), ...
+        py_ols_gt2_stats(1,2),py_ols_gt2_stats(1,3),py_ols_gt2_stats(1,4))
+end
+if py_node_odr
+    fprintf('py_node ODR\t %.4f\t %.4f\t %.4f\t %.4f\n',py_odr_gt2_stats(1,1), ...
+        py_odr_gt2_stats(1,2),py_odr_gt2_stats(1,3),py_odr_gt2_stats(1,4))
 end
 
 fprintf('\nGT2 Ego-Velocity Error -- Lateral [m/s]\n')
@@ -735,13 +807,21 @@ if ceres_cauchy
     fprintf('Ceres-Cauchy\t %.4f\t %.4f\t %.4f\t %.4f\n',cauchy_gt2_stats(2,1), ...
         cauchy_gt2_stats(2,2),cauchy_gt2_stats(2,3),cauchy_gt2_stats(2,4))
 end
-if ceres_ransac
+if ceres_mlesac
     fprintf('Ceres-RANSAC\t %.4f\t %.4f\t %.4f\t %.4f\n',ransac_gt2_stats(2,1), ...
         ransac_gt2_stats(2,2),ransac_gt2_stats(2,3),ransac_gt2_stats(2,4))
 end
 if ceres_ols
     fprintf('Ceres-OLS\t %.4f\t %.4f\t %.4f\t %.4f\n',ols_gt2_stats(2,1), ...
         ols_gt2_stats(2,2),ols_gt2_stats(2,3),ols_gt2_stats(2,4))
+end
+if py_node_ols
+    fprintf('py_node OLS\t %.4f\t %.4f\t %.4f\t %.4f\n',py_ols_gt2_stats(2,1), ...
+        py_ols_gt2_stats(2,2),py_ols_gt2_stats(2,3),py_ols_gt2_stats(2,4))
+end
+if py_node_odr
+    fprintf('py_node ODR\t %.4f\t %.4f\t %.4f\t %.4f\n',py_odr_gt2_stats(2,1), ...
+        py_odr_gt2_stats(2,2),py_odr_gt2_stats(2,3),py_odr_gt2_stats(2,4))
 end
 
 fprintf('\nGT2 Ego-Velocity Error -- Vertical [m/s]\n')
@@ -762,13 +842,21 @@ if ceres_cauchy
     fprintf('Ceres-Cauchy\t %.4f\t %.4f\t %.4f\t %.4f\n',cauchy_gt2_stats(3,1), ...
         cauchy_gt2_stats(3,2),cauchy_gt2_stats(3,3),cauchy_gt2_stats(3,4))
 end
-if ceres_ransac
+if ceres_mlesac
     fprintf('Ceres-RANSAC\t %.4f\t %.4f\t %.4f\t %.4f\n',ransac_gt2_stats(3,1), ...
         ransac_gt2_stats(3,2),ransac_gt2_stats(3,3),ransac_gt2_stats(3,4))
 end
 if ceres_ols
     fprintf('Ceres-OLS\t %.4f\t %.4f\t %.4f\t %.4f\n',ols_gt2_stats(3,1), ...
         ols_gt2_stats(3,2),ols_gt2_stats(3,3),ols_gt2_stats(3,4))
+end
+if py_node_ols
+    fprintf('py_node OLS\t %.4f\t %.4f\t %.4f\t %.4f\n',py_ols_gt2_stats(3,1), ...
+        py_ols_gt2_stats(3,2),py_ols_gt2_stats(3,3),py_ols_gt2_stats(3,4))
+end
+if py_node_odr
+    fprintf('py_node ODR\t %.4f\t %.4f\t %.4f\t %.4f\n',py_odr_gt2_stats(3,1), ...
+        py_odr_gt2_stats(3,2),py_odr_gt2_stats(3,3),py_odr_gt2_stats(3,4))
 end
 
 
@@ -815,11 +903,12 @@ vhat_odr_w = vhat_odr_w(idx_odr_w,:);
 sigma_odr = sigma_odr(idx_odr,:);
 sigma_odr_w = sigma_odr_w(idx_odr_w,:);
 
-if ~(ceres_cauchy || ceres_ransac || ceres_ols)
+if ~(ceres_cauchy || ceres_mlesac || ceres_ols)
     fprintf('\nNo Goggles estimates to be plotted\n')
     goggles = false;
-    
-elseif xor(~xor(ceres_cauchy, ceres_ransac), ceres_ols)
+
+elseif ceres_cauchy || ceres_mlesac || ceres_ols
+% elseif xor(~xor(ceres_cauchy, ceres_mlesac), ceres_ols)
     goggles = true;
     
     if ceres_cauchy
@@ -827,7 +916,7 @@ elseif xor(~xor(ceres_cauchy, ceres_ransac), ceres_ols)
         goggles_velocity_body = cauchy_velocity_body;
         goggles_time_second   = cauchy_time_second;
         goggles_time_stamp    = cauchy_time_stamp;
-    elseif ceres_ransac
+    elseif ceres_mlesac
         fprintf('\nUsing Ceres-RANSAC Estimate as Goggles\n')
         goggles_velocity_body = ransac_velocity_body;
         goggles_time_second   = ransac_time_second;
@@ -839,10 +928,10 @@ elseif xor(~xor(ceres_cauchy, ceres_ransac), ceres_ols)
         goggles_time_stamp    = ols_time_stamp;
     end
         
-elseif ceres_cauchy && ceres_ransac && ceres_ransac
+elseif ceres_cauchy && ceres_mlesac && ceres_mlesac
     goggles = true;
     
-    fprintf('\nCeres-Cauchy, Ceres-RANSAC & Ceres-OLS estimates available - using Ceres-RANSAC\n')
+    fprintf('\nCeres-Cauchy, Ceres-MLESAC & Ceres-OLS estimates available - using Ceres-RANSAC\n')
     goggles_velocity_body = ransac_velocity_body;
     goggles_time_second   = ransac_time_second;
     goggles_time_stamp    = ransac_time_stamp;
@@ -953,7 +1042,8 @@ elseif t265
     plot(ax_h(18),odom_time_stamp,odom_velocity_body(:,2),'color',colors(4,:));
     plot(ax_h(19),odom_time_stamp,odom_velocity_body(:,3),'color',colors(4,:));
     
-    legend(h,{'groundtruth','Radar Odometry','T265 VIO'},'Interpreter','latex')
+%     legend(h,{'groundtruth','Radar Odometry','T265 VIO'},'Interpreter','latex')
+    legend(h,{'groundtruth','Matlab ODR','T265 VIO'},'Interpreter','latex')
 elseif goggles
     h(3) = plot(ax_h(17),goggles_time_stamp,goggles_velocity_body(:,1),'color',colors(6,:));
     plot(ax_h(18),goggles_time_stamp,goggles_velocity_body(:,2),'color',colors(6,:));
@@ -1027,7 +1117,7 @@ xlim(ax_h(28), [radar_time_stamp(1), radar_time_stamp(end)]);
 hdl = legend(ax_h(26),'weighted ODR\_v5','2$\sigma$ envelope');
 set(hdl,'Interpreter','latex','Location','northwest')
 
-if ceres_cauchy || ceres_ransac || ceres_ols
+if ceres_cauchy || ceres_mlesac || ceres_ols
     % Weighted ODR_v5 + Ceres-Cauchy + Ceres-RANSAC ego-velocity estimates
     h(1) = plot(ax_h(29),velocity_time_stamp,gt(:,1),'k','LineWidth',1);
     plot(ax_h(30),velocity_time_stamp,gt(:,2),'k','LineWidth',1);
@@ -1040,6 +1130,7 @@ if ceres_cauchy || ceres_ransac || ceres_ols
     xlim(ax_h(31), [radar_time_stamp(1), radar_time_stamp(end)]);
     
     legend_entries = ["groundtruth","Weighted ODR"];
+    legend_entries = ["groundtruth","Matlab ODR"];
     
     if ceres_cauchy
         plot(ax_h(29),cauchy_time_stamp,cauchy_velocity_body(:,1),'color',colors(6,:));
@@ -1048,7 +1139,7 @@ if ceres_cauchy || ceres_ransac || ceres_ols
         legend_entries = [legend_entries,"Ceres-Cauchy"];
     end
     
-    if ceres_ransac
+    if ceres_mlesac
         plot(ax_h(29),ransac_time_stamp,ransac_velocity_body(:,1),'color',colors(5,:));
         plot(ax_h(30),ransac_time_stamp,ransac_velocity_body(:,2),'color',colors(5,:));
         plot(ax_h(31),ransac_time_stamp,ransac_velocity_body(:,3),'color',colors(5,:));
@@ -1060,6 +1151,20 @@ if ceres_cauchy || ceres_ransac || ceres_ols
         plot(ax_h(30),ols_time_stamp,ols_velocity_body(:,2),'color',colors(2,:));
         plot(ax_h(31),ols_time_stamp,ols_velocity_body(:,3),'color',colors(2,:));
         legend_entries = [legend_entries,"Ceres-OLS"];
+    end
+    
+%     if py_node_ols
+%         plot(ax_h(29),py_ols_time_stamp,py_ols_velocity_body(:,1),'color',colors(6,:));
+%         plot(ax_h(30),py_ols_time_stamp,py_ols_velocity_body(:,2),'color',colors(6,:));
+%         plot(ax_h(31),py_ols_time_stamp,py_ols_velocity_body(:,3),'color',colors(6,:));
+%         legend_entries = [legend_entries,"py\_node OLS"];
+%     end
+    
+    if py_node_odr
+        plot(ax_h(29),py_odr_time_stamp,py_odr_velocity_body(:,1),'color',colors(2,:));
+        plot(ax_h(30),py_odr_time_stamp,py_odr_velocity_body(:,2),'color',colors(2,:));
+        plot(ax_h(31),py_odr_time_stamp,py_odr_velocity_body(:,3),'color',colors(2,:));
+        legend_entries = [legend_entries,"py\_node ODR"];
     end
     
     legend(ax_h(29),legend_entries,'Interpreter','latex')

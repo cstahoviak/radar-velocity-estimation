@@ -64,6 +64,7 @@ function [ distances ] = MLESAC_distFcn( model, data )
     % is this an appropriate distance function??
 %     fprintf('\nDistances:\n')
     distances = sqrt( (doppler_predicted - radar_doppler).^2 );
+%     disp( sort(distances) )
 end
 
 function [ isValid ]  = validateMSS( model, varargin )
