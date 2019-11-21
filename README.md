@@ -2,7 +2,7 @@
 __MS Thesis work - Matlab implementation of an ODR-based Doppler target radar velocity estimation algorithm.__
 
 This work implements an [Orthogonal Distance Regression](http://scholar.colorado.edu/cgi/viewcontent.cgi?article=1311&context=csci_techreports)
-method for estimating the body-frame velocity profile parameters for a Doppler radar measurement model. This method has been implemented as a Python ROS node as [goggles](https://github.com/cstahoviak/goggles).
+method for estimating the body-frame velocity profile parameters for a Doppler radar measurement model. This method has been implemented as a Python ROS node - [goggles](https://github.com/cstahoviak/goggles).
 
 The figure below compares the _radar-only_ ODR-based odometry method to a newly commercially available
 [Intel T265 Tracking Camera](https://www.intelrealsense.com/tracking-camera-t265/) visual-inertial odometry system.
